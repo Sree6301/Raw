@@ -164,10 +164,17 @@
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0">
+                                                <Border Background="#10B981" CornerRadius="4" Padding="6,3" Margin="0,0,6,0"
+                                                        Visibility="{Binding HasScannedPages, Converter={StaticResource BoolToVis}}">
+                                                    <TextBlock Text="{Binding ScanProgressBadge}" Foreground="White" FontWeight="Bold" FontSize="11"/>
+                                                </Border>
                                                 <Button Content="{Binding ActionButtonText}" Click="BtnRowAction_Click"
                                                         Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="10,4" Margin="0,0,6,0" BorderThickness="0"/>
                                                 <Button Content="✅ Complete" Click="BtnRowComplete_Click"
                                                         Background="#059669" Foreground="White" Padding="8,4" BorderThickness="0"/>
+                                                <Button Content="⚙️ Settings" Click="BtnRowSettings_Click"
+                                                        Background="#475569" Foreground="White" Padding="8,4" Margin="6,0,0,0" BorderThickness="0"
+                                                        ToolTip="Configure Print Layout &amp; Settings"/>
                                             </StackPanel>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>

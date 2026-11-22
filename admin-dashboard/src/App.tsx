@@ -526,11 +526,6 @@ export function App() {
                           <TableCell sx={{ fontWeight: 700 }}>₹{doc.calculatedPrice.toFixed(2)}</TableCell>
                           <TableCell align="right">
                             <Stack direction="row" spacing={0.5} justifyContent="flex-end" alignItems="center">
-                              <Tooltip title="Configure Print Layout & Settings">
-                                <IconButton size="small" onClick={() => handleOpenSettings(doc)}>
-                                  <Settings size={16} />
-                                </IconButton>
-                              </Tooltip>
                               {doc.status === 'SUBMITTED' ? (
                                 <Button size="small" variant="contained" onClick={() => handleDocAction(doc.id, 'APPROVE')}>
                                   Approve & Print
@@ -544,6 +539,11 @@ export function App() {
                                   Complete
                                 </Button>
                               )}
+                              <Tooltip title="Configure Print Layout & Settings">
+                                <IconButton size="small" onClick={() => handleOpenSettings(doc)} sx={{ border: '1px solid #cbd5e1' }}>
+                                  <Settings size={16} />
+                                </IconButton>
+                              </Tooltip>
                             </Stack>
                           </TableCell>
                         </TableRow>
@@ -614,12 +614,6 @@ export function App() {
                         <TableCell sx={{ fontWeight: 700 }}>₹{doc.calculatedPrice.toFixed(2)}</TableCell>
                         <TableCell align="right">
                           <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
-                            <Tooltip title="Configure DPI, N-Up, Scale, Orientation">
-                              <IconButton size="small" onClick={() => handleOpenSettings(doc)} sx={{ border: '1px solid #cbd5e1' }}>
-                                <Settings size={16} />
-                              </IconButton>
-                            </Tooltip>
-
                             {doc.status === 'SUBMITTED' && (
                               <>
                                 <Button size="small" variant="contained" color="primary" onClick={() => handleDocAction(doc.id, 'APPROVE')}>
@@ -654,6 +648,12 @@ export function App() {
                                 Mark Done
                               </Button>
                             )}
+
+                            <Tooltip title="Configure DPI, N-Up, Scale, Orientation">
+                              <IconButton size="small" onClick={() => handleOpenSettings(doc)} sx={{ border: '1px solid #cbd5e1' }}>
+                                <Settings size={16} />
+                              </IconButton>
+                            </Tooltip>
                           </Stack>
                         </TableCell>
                       </TableRow>
@@ -729,12 +729,6 @@ export function App() {
                           <TableCell sx={{ fontWeight: 700 }}>₹{photo.calculatedPrice.toFixed(2)}</TableCell>
                           <TableCell align="right">
                             <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
-                              <Tooltip title="Configure DPI, Scaling, Orientation">
-                                <IconButton size="small" onClick={() => handleOpenSettings(photo)} sx={{ border: '1px solid #cbd5e1' }}>
-                                  <Settings size={16} />
-                                </IconButton>
-                              </Tooltip>
-
                               {photo.status === 'SUBMITTED' ? (
                                 <>
                                   <Button size="small" variant="contained" color="primary" onClick={() => handlePhotoAction(photo.id, 'APPROVE')}>
@@ -755,6 +749,12 @@ export function App() {
                                   Mark Done
                                 </Button>
                               )}
+
+                              <Tooltip title="Configure DPI, Scaling, Orientation">
+                                <IconButton size="small" onClick={() => handleOpenSettings(photo)} sx={{ border: '1px solid #cbd5e1' }}>
+                                  <Settings size={16} />
+                                </IconButton>
+                              </Tooltip>
                             </Stack>
                           </TableCell>
                         </TableRow>
@@ -783,7 +783,13 @@ export function App() {
                         Target: {activeScanOrder.format} • {activeScanOrder.resolution} DPI • {activeScanOrder.colorMode} (Direct WIA Glass Scan, Zero Watermarks)
                       </Typography>
                     </Box>
-                    <Stack direction="row" spacing={1}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      {activeScanOrder.scannedPages.length > 0 && (
+                        <Chip
+                          label={`${activeScanOrder.scannedPages.length}/${activeScanOrder.requestedPageCount} Scanned ✓`}
+                          sx={{ bgcolor: '#16a34a', color: 'white', fontWeight: 800 }}
+                        />
+                      )}
                       <Button
                         variant="contained"
                         startIcon={<Scan size={18} />}
@@ -791,13 +797,25 @@ export function App() {
                         onClick={handleScanPageCapture}
                         sx={{ bgcolor: '#7c3aed', '&:hover': { bgcolor: '#6d28d9' } }}
                       >
-                        {scannerScanning ? 'Scanning Flatbed Glass...' : 'Scan Page on Glass'}
+                        {scannerScanning
+                          ? 'Scanning Flatbed Glass...'
+                          : (activeScanOrder.scannedPages.length > 0
+                              ? `Insert next doc & continue scan (${activeScanOrder.scannedPages.length + 1}/${activeScanOrder.requestedPageCount})`
+                              : `Approve & Scan Page 1 of ${activeScanOrder.requestedPageCount}`)}
                       </Button>
                       <Button
                         variant="contained"
                         color="success"
                         disabled={activeScanOrder.scannedPages.length === 0}
-                        onClick={handleFinishScan}
+                        onClick={() => {
+                          if (activeScanOrder.scannedPages.length < activeScanOrder.requestedPageCount) {
+                            const confirmed = window.confirm(
+                              `Warning: Only ${activeScanOrder.scannedPages.length} of ${activeScanOrder.requestedPageCount} requested pages have been scanned. Customer requested ${activeScanOrder.requestedPageCount} pages.\n\nProceed to finalize and deliver with ${activeScanOrder.scannedPages.length} pages?`
+                            );
+                            if (!confirmed) return;
+                          }
+                          handleFinishScan();
+                        }}
                       >
                         Finish & Deliver to Customer
                       </Button>
@@ -881,18 +899,32 @@ export function App() {
                           </TableCell>
                           <TableCell sx={{ fontWeight: 700 }}>₹{scn.calculatedPrice.toFixed(2)}</TableCell>
                           <TableCell align="right">
-                            {scn.status !== 'DOWNLOAD_AVAILABLE' ? (
-                              <Button
-                                size="small"
-                                variant="contained"
-                                sx={{ bgcolor: '#7c3aed' }}
-                                onClick={() => setActiveScanOrder(scn)}
-                              >
-                                Open Scanner Console
-                              </Button>
-                            ) : (
-                              <Chip size="small" label="Delivered" color="success" />
-                            )}
+                            <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
+                              {scn.scannedPages && scn.scannedPages.length > 0 && (
+                                <Chip
+                                  size="small"
+                                  label={`${scn.scannedPages.length}/${scn.requestedPageCount} Scanned ✓`}
+                                  sx={{ bgcolor: '#dcfce7', color: '#15803d', fontWeight: 700 }}
+                                />
+                              )}
+                              {scn.status !== 'DOWNLOAD_AVAILABLE' ? (
+                                <Button
+                                  size="small"
+                                  variant="contained"
+                                  sx={{ bgcolor: '#7c3aed' }}
+                                  onClick={() => setActiveScanOrder(scn)}
+                                >
+                                  Open Scanner Console
+                                </Button>
+                              ) : (
+                                <Chip size="small" label="Delivered" color="success" />
+                              )}
+                              <Tooltip title="Configure Service Settings">
+                                <IconButton size="small" onClick={() => handleOpenSettings(scn as any)} sx={{ border: '1px solid #cbd5e1' }}>
+                                  <Settings size={16} />
+                                </IconButton>
+                              </Tooltip>
+                            </Stack>
                           </TableCell>
                         </TableRow>
                       ))}

@@ -16,7 +16,8 @@ import {
   Alert,
   CircularProgress,
   IconButton,
-  Grid
+  Grid,
+  Chip
 } from '@mui/material';
 import {
   ArrowLeft,
@@ -164,8 +165,15 @@ export function PhotoPrintPage() {
                   control={<Radio />}
                   label={
                     <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>4 × 6 inch Photo Paper (Standard Album)</Typography>
-                      <Typography variant="caption" color="text.secondary">101.6 × 152.4 mm • Glossy Finish • Single-sided</Typography>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="body2" sx={{ fontWeight: 700, color: '#0369a1' }}>
+                          HP Photo Paper (4 × 6 inch Glossy)
+                        </Typography>
+                        <Chip label="Auto-Selected" size="small" color="primary" sx={{ height: 20, fontSize: '0.7rem', fontWeight: 700 }} />
+                      </Stack>
+                      <Typography variant="caption" color="text.secondary">
+                        101.6 × 152.4 mm • HP Glossy Photo Paper • Vivid Color Reproduction
+                      </Typography>
                     </Box>
                   }
                 />
@@ -174,11 +182,11 @@ export function PhotoPrintPage() {
                   control={<Radio />}
                   label={
                     <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>A4 Photo Paper (Full Page / Multiple Layout)</Typography>
-                      <Typography variant="caption" color="text.secondary">210 × 297 mm • High Gloss • Single-sided</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>HP Photo Paper (A4 Full Sheet)</Typography>
+                      <Typography variant="caption" color="text.secondary">210 × 297 mm • High Gloss HP Premium Photo Paper</Typography>
                     </Box>
                   }
-                  sx={{ mt: 1 }}
+                  sx={{ mt: 1.5 }}
                 />
               </RadioGroup>
 

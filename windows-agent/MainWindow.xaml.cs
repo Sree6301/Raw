@@ -209,15 +209,44 @@ namespace SmartXeroxHub.Agent
 
                 if (order.IsScan)
                 {
-                    // "🔍 Approve & Scan"
+                    // Multi-page sequential scan handler
+                    int currentPageToScan = order.ScannedPagesCount + 1;
+                    bool isLastPage = currentPageToScan >= order.RequestedPagesCount;
+
                     btn.IsEnabled = false;
-                    btn.Content = "⏳ Scanning Glass...";
+                    btn.Content = $"⏳ Scanning Page {currentPageToScan}...";
                     try
                     {
-                        var success = await _backendSync.AcquireAndUploadScanAsync(order.Id, order.OrderNumber, order.Format, order.Resolution, order.ColorMode);
+                        var success = await _backendSync.AcquireAndUploadScanAsync(
+                            order.Id,
+                            order.OrderNumber,
+                            order.Format,
+                            order.Resolution,
+                            order.ColorMode,
+                            currentPageToScan,
+                            isLastPage
+                        );
+
                         if (success)
                         {
-                            MessageBox.Show($"Physical scan captured directly from HP Smart Tank 589 flatbed glass without watermarks!\n\nSaved to RAW_Inputs/Scans.\nCustomer site has received the download file.", "Scan Succeeded & Delivered", MessageBoxButton.OK, MessageBoxImage.Information);
+                            if (isLastPage)
+                            {
+                                MessageBox.Show(
+                                    $"All {order.RequestedPagesCount} pages scanned directly from HP Smart Tank 589 flatbed glass!\n\nMerged file saved to RAW_Inputs/Scans.\nCustomer site has received the download file.",
+                                    "Scanning Completed & Delivered",
+                                    MessageBoxButton.OK,
+                                    MessageBoxImage.Information
+                                );
+                            }
+                            else
+                            {
+                                MessageBox.Show(
+                                    $"Page {currentPageToScan} of {order.RequestedPagesCount} scanned successfully and saved to RAW_Inputs/Scans!\n\n👉 Place the next document on the scanner glass and click 'Continue Scan' on this row.",
+                                    "Page Captured — Insert Next Document",
+                                    MessageBoxButton.OK,
+                                    MessageBoxImage.Information
+                                );
+                            }
                         }
                         else
                         {
@@ -240,7 +269,6 @@ namespace SmartXeroxHub.Agent
                     finally
                     {
                         btn.IsEnabled = true;
-                        btn.Content = "🔍 Approve & Scan";
                         await RefreshOrdersAsync();
                     }
                     return;
@@ -340,8 +368,47 @@ namespace SmartXeroxHub.Agent
         {
             if (sender is Button btn && btn.DataContext is BackendOrderDto order)
             {
+                // Early scan finish warning if customer requested more pages than currently scanned
+                if (order.IsScan && order.ScannedPagesCount > 0 && order.ScannedPagesCount < order.RequestedPagesCount)
+                {
+                    var result = MessageBox.Show(
+                        $"Warning: Only {order.ScannedPagesCount} of {order.RequestedPagesCount} requested pages have been scanned.\n\nCustomer requested {order.RequestedPagesCount} pages.\n\nProceed to finalize and deliver with {order.ScannedPagesCount} pages?",
+                        "Incomplete Scan Warning",
+                        MessageBoxButton.OKCancel,
+                        MessageBoxImage.Warning
+                    );
+                    if (result != MessageBoxResult.OK)
+                    {
+                        return;
+                    }
+
+                    // Finalize scan with existing pages
+                    await _backendSync.FinalizeScanOrderAsync(order.Id);
+                }
+
                 await _backendSync.UpdateOrderStatusOnBackendAsync(order.Id, order.ServiceType, "COMPLETE");
                 await RefreshOrdersAsync();
+            }
+        }
+
+        private async void BtnRowSettings_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.DataContext is BackendOrderDto order)
+            {
+                var win = new PrintSettingsWindow(order, _backendSync, _deviceManager)
+                {
+                    Owner = this
+                };
+                if (win.ShowDialog() == true)
+                {
+                    if (win.ShouldPrintImmediately)
+                    {
+                        var printerName = _deviceManager.ActivePrinter?.Name ?? "HP Smart Tank 580-590 series";
+                        await _backendSync.TriggerPrintOrderAsync(order.Id, printerName);
+                        MessageBox.Show($"Settings applied and print command dispatched to '{printerName}'!", "Print Spooled", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    await RefreshOrdersAsync();
+                }
             }
         }
 

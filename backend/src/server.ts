@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import cors from 'cors';
 import { WebSocketServer, WebSocket } from 'ws';
 import { loadPersistedState } from './state.js';
-import { createRouter } from './routes.js';
+import { createRouter, runTenDayScanRetentionCleanup } from './routes.js';
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
 const app = express();
@@ -167,4 +167,8 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(` Realtime WebSocket: ws://localhost:${PORT}/ws`);
   console.log(` RAW_Inputs Directory: ${rawInputsDir}`);
   console.log(`=======================================================`);
+
+  // Run 10-day retention cleanup for scans on startup and every 6 hours
+  runTenDayScanRetentionCleanup(scansDir);
+  setInterval(() => runTenDayScanRetentionCleanup(scansDir), 6 * 60 * 60 * 1000);
 });

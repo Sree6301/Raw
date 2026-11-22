@@ -35,10 +35,32 @@ namespace SmartXeroxHub.Agent.Core
         public int Resolution { get; set; } = 300;
         public string FinalFileName { get; set; } = string.Empty;
         public string FinalFileUrl { get; set; } = string.Empty;
+        public int ScannedPagesCount { get; set; } = 0;
+        public int RequestedPagesCount { get; set; } = 1;
+        public List<string> ScannedPageUrls { get; set; } = new();
 
         public bool IsScan => ServiceType == "SCAN";
         public bool IsDuplex => Sides == "MANUAL_DUPLEX";
-        public string ActionButtonText => IsScan ? "🔍 Approve & Scan" : (IsDuplex ? "📑 Approve & Duplex" : "🖨️ Approve & Print");
+        public bool HasScannedPages => IsScan && ScannedPagesCount > 0;
+        public string ScanProgressBadge => $"{ScannedPagesCount}/{RequestedPagesCount} Scanned ✓";
+
+        public string ActionButtonText
+        {
+            get
+            {
+                if (IsScan)
+                {
+                    if (Status == "DOWNLOAD_AVAILABLE") return "✅ Delivered";
+                    if (ScannedPagesCount > 0 && ScannedPagesCount < RequestedPagesCount)
+                        return $"📄 Insert next doc & Continue Scan ({ScannedPagesCount + 1}/{RequestedPagesCount})";
+                    if (ScannedPagesCount >= RequestedPagesCount && RequestedPagesCount > 0)
+                        return "✨ Finalize & Deliver Scan";
+                    return $"🔍 Approve & Scan (1/{RequestedPagesCount})";
+                }
+                if (IsDuplex) return "📑 Approve & Duplex";
+                return "🖨️ Approve & Print";
+            }
+        }
     }
 
     public class ShopPricingDto
@@ -492,19 +514,35 @@ namespace SmartXeroxHub.Agent.Core
                         string fUrl = s.TryGetProperty("finalFileUrl", out var fu) ? fu.GetString() ?? "" : "";
                         string loc = !string.IsNullOrEmpty(fName) ? Path.Combine(scansDir, fName) : (!string.IsNullOrEmpty(fUrl) ? Path.Combine(scansDir, Path.GetFileName(fUrl)) : "");
 
+                        int reqPages = s.TryGetProperty("requestedPageCount", out var rpc) ? rpc.GetInt32() : 1;
+                        var scannedPageList = new List<string>();
+                        if (s.TryGetProperty("scannedPages", out var spArray) && spArray.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var pObj in spArray.EnumerateArray())
+                            {
+                                if (pObj.TryGetProperty("previewUrl", out var pu) && !string.IsNullOrEmpty(pu.GetString()))
+                                {
+                                    scannedPageList.Add(pu.GetString()!);
+                                }
+                            }
+                        }
+
                         list.Add(new BackendOrderDto
                         {
                             Id = s.GetProperty("id").GetString()!,
                             OrderNumber = s.GetProperty("orderNumber").GetString()!,
                             ServiceType = "SCAN",
                             Status = s.GetProperty("status").GetString()!,
-                            OriginalFileName = !string.IsNullOrEmpty(fName) ? fName : $"Flatbed Scan ({fmt}, {scanDpi} DPI)",
+                            OriginalFileName = !string.IsNullOrEmpty(fName) ? fName : $"Flatbed Scan ({fmt}, {scanDpi} DPI, {reqPages} pages)",
                             Format = fmt,
                             Resolution = scanDpi,
                             FinalFileName = fName,
                             FinalFileUrl = fUrl,
                             LocalFilePath = loc,
-                            TotalPages = s.GetProperty("requestedPageCount").GetInt32(),
+                            TotalPages = reqPages,
+                            RequestedPagesCount = reqPages,
+                            ScannedPagesCount = scannedPageList.Count,
+                            ScannedPageUrls = scannedPageList,
                             ColorMode = s.GetProperty("colorMode").GetString()!,
                             CalculatedPrice = s.GetProperty("calculatedPrice").GetDecimal(),
                             CreatedAt = s.GetProperty("createdAt").GetString()!
@@ -596,13 +634,13 @@ namespace SmartXeroxHub.Agent.Core
             }
         }
 
-        public async Task<bool> AcquireAndUploadScanAsync(string orderId, string orderNumber, string format = "PDF", int resolution = 300, string colorMode = "COLOR")
+        public async Task<bool> AcquireAndUploadScanAsync(string orderId, string orderNumber, string format = "PDF", int resolution = 300, string colorMode = "COLOR", int pageIndex = 1, bool finishOrder = true)
         {
             string? scannedImagePath = null;
             string? tempOptimized = null;
             try
             {
-                LoggingManager.Info($"[BackendSync] Triggering physical HP flatbed scan for order {orderNumber} ({format}, {resolution} DPI, {colorMode})");
+                LoggingManager.Info($"[BackendSync] Triggering physical HP flatbed scan for order {orderNumber} Page {pageIndex} ({format}, {resolution} DPI, {colorMode})");
 
                 var scanParams = new ScanParameters
                 {
@@ -612,7 +650,7 @@ namespace SmartXeroxHub.Agent.Core
                 };
 
                 // Real physical WIA scan without watermarks
-                scannedImagePath = _scanManager.AcquireFlatbedScan(scanParams, 1, orderNumber);
+                scannedImagePath = _scanManager.AcquireFlatbedScan(scanParams, pageIndex, orderNumber);
                 if (string.IsNullOrEmpty(scannedImagePath) || !File.Exists(scannedImagePath))
                 {
                     LoggingManager.Error("[BackendSync] Flatbed scan acquisition produced no file");
@@ -659,17 +697,20 @@ namespace SmartXeroxHub.Agent.Core
                 byteContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/jpeg");
                 form.Add(byteContent, "pageImage", Path.GetFileName(scannedImagePath));
 
-                LoggingManager.Info($"[BackendSync] Uploading scan to cloud ({fileBytes.Length / 1024} KB)...");
+                LoggingManager.Info($"[BackendSync] Uploading scan page {pageIndex} to cloud ({fileBytes.Length / 1024} KB)...");
                 var uploadRes = await _httpClient.PostAsync($"/api/admin/scan/{orderId}/page", form);
                 if (!uploadRes.IsSuccessStatusCode)
                 {
                     LoggingManager.Warn($"[BackendSync] Scan page upload returned status {uploadRes.StatusCode}");
                 }
 
-                // Finish scan order so final download is available for user
-                LoggingManager.Info($"[BackendSync] Finalizing scan order {orderId} on backend...");
-                var finishRes = await _httpClient.PostAsync($"/api/admin/scan/{orderId}/finish", new StringContent("{}", Encoding.UTF8, "application/json"));
-                LoggingManager.Info($"[BackendSync] Scan order {orderNumber} finished successfully: DOWNLOAD_AVAILABLE");
+                if (finishOrder)
+                {
+                    // Finish scan order so final download is available for user
+                    LoggingManager.Info($"[BackendSync] Finalizing scan order {orderId} on backend...");
+                    var finishRes = await _httpClient.PostAsync($"/api/admin/scan/{orderId}/finish", new StringContent("{}", Encoding.UTF8, "application/json"));
+                    LoggingManager.Info($"[BackendSync] Scan order {orderNumber} finished successfully: DOWNLOAD_AVAILABLE");
+                }
 
                 OrdersUpdated?.Invoke();
                 return true;
@@ -685,6 +726,52 @@ namespace SmartXeroxHub.Agent.Core
                 {
                     try { File.Delete(tempOptimized); } catch { }
                 }
+            }
+        }
+
+        public async Task<bool> FinalizeScanOrderAsync(string orderId)
+        {
+            try
+            {
+                var res = await _httpClient.PostAsync($"/api/admin/scan/{orderId}/finish", new StringContent("{}", Encoding.UTF8, "application/json"));
+                OrdersUpdated?.Invoke();
+                return res.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                LoggingManager.Error($"[BackendSync] Failed to finalize scan order {orderId}", ex);
+                return false;
+            }
+        }
+
+        public async Task<bool> SaveOrderSettingsAsync(string orderId, PrintJobOptions settings)
+        {
+            try
+            {
+                var payload = new
+                {
+                    printSettings = new
+                    {
+                        dpi = settings.Dpi,
+                        pagesPerSheet = settings.PagesPerSheet,
+                        orientation = settings.Orientation,
+                        scalePercent = settings.ScalePercent,
+                        scope = settings.Scope,
+                        paperType = settings.PaperType,
+                        paperSize = settings.PaperSize,
+                        colorMode = settings.ColorMode
+                    }
+                };
+                var json = JsonSerializer.Serialize(payload);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var res = await _httpClient.PostAsync($"/api/admin/orders/{orderId}/settings", content);
+                OrdersUpdated?.Invoke();
+                return res.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                LoggingManager.Error($"[BackendSync] Failed to save order settings for {orderId}", ex);
+                return false;
             }
         }
 

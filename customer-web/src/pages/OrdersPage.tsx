@@ -247,21 +247,80 @@ export function OrdersPage() {
                   </Typography>
 
                   {/* Download Button if available */}
-                  {scn.status === 'DOWNLOAD_AVAILABLE' && scn.finalFileUrl && (
-                    <Box sx={{ mt: 2 }}>
-                      <Button
-                        variant="contained"
-                        fullWidth
-                        href={scn.finalFileUrl}
-                        download={scn.finalFileName || 'scanned-document.pdf'}
-                        target="_blank"
-                        startIcon={<Download size={18} />}
-                        sx={{ bgcolor: '#059669', '&:hover': { bgcolor: '#047857' } }}
-                      >
-                        Download Scanned {scn.format} File
-                      </Button>
-                    </Box>
-                  )}
+                  {scn.status === 'DOWNLOAD_AVAILABLE' && (() => {
+                    const apiBase = ((import.meta as any).env?.VITE_API_BASE_URL as string) || '';
+                    const downloadUrl = `${apiBase}/api/orders/scans/${scn.id}/download`;
+                    const downloadZipUrl = `${apiBase}/api/orders/scans/${scn.id}/download-zip`;
+
+                    if (scn.format === 'PDF') {
+                      return (
+                        <Box sx={{ mt: 2 }}>
+                          <Button
+                            variant="contained"
+                            fullWidth
+                            href={downloadUrl}
+                            download={scn.finalFileName || `ScannedDoc_${scn.orderNumber}.pdf`}
+                            startIcon={<Download size={18} />}
+                            sx={{ bgcolor: '#059669', '&:hover': { bgcolor: '#047857' } }}
+                          >
+                            Download Scanned PDF Document
+                          </Button>
+                        </Box>
+                      );
+                    }
+
+                    // JPEG format
+                    if (scn.scannedPages && scn.scannedPages.length > 1) {
+                      return (
+                        <Box sx={{ mt: 2 }}>
+                          <Stack spacing={1}>
+                            <Button
+                              variant="contained"
+                              fullWidth
+                              href={downloadZipUrl}
+                              download={`${scn.orderNumber}_all_scans.zip`}
+                              startIcon={<Download size={18} />}
+                              sx={{ bgcolor: '#059669', '&:hover': { bgcolor: '#047857' } }}
+                            >
+                              Download All {scn.scannedPages.length} Pages (ZIP)
+                            </Button>
+                            <Typography variant="caption" sx={{ fontWeight: 600, color: '#334155', mt: 0.5, display: 'block' }}>
+                              Or download individual JPG pages:
+                            </Typography>
+                            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                              {scn.scannedPages.map((p) => (
+                                <Button
+                                  key={p.pageIndex}
+                                  size="small"
+                                  variant="outlined"
+                                  href={`${apiBase}/api/orders/scans/${scn.id}/download/page/${p.pageIndex}`}
+                                  download={`${scn.orderNumber}_page${p.pageIndex}.jpg`}
+                                  startIcon={<Download size={14} />}
+                                >
+                                  Page {p.pageIndex} (JPG)
+                                </Button>
+                              ))}
+                            </Stack>
+                          </Stack>
+                        </Box>
+                      );
+                    }
+
+                    return (
+                      <Box sx={{ mt: 2 }}>
+                        <Button
+                          variant="contained"
+                          fullWidth
+                          href={downloadUrl}
+                          download={`${scn.orderNumber}_page1.jpg`}
+                          startIcon={<Download size={18} />}
+                          sx={{ bgcolor: '#059669', '&:hover': { bgcolor: '#047857' } }}
+                        >
+                          Download Scanned JPG Image
+                        </Button>
+                      </Box>
+                    );
+                  })()}
 
                   <Divider sx={{ my: 1.5 }} />
 

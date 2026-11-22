@@ -4,6 +4,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { PDFDocument } from 'pdf-lib';
+import archiver from 'archiver';
 import {
   DocumentOrderStatus,
   DuplexStage,
@@ -468,7 +469,22 @@ export function createRouter(
       else if (action === 'REJECT') order.status = 'REJECTED';
       else if (action === 'READY_TO_PRINT') order.status = 'READY_TO_PRINT';
       else if (action === 'PRINTING') order.status = 'FIRST_SIDE_PRINTING';
-      else if (action === 'COMPLETE') order.status = 'COMPLETED';
+      else if (action === 'COMPLETE') {
+        order.status = 'COMPLETED';
+        // Auto-delete temporary cloud upload to free storage space
+        // Local Windows Agent permanently retains RAW_Inputs/User_Uploads
+        try {
+          if (order.fileUrl) {
+            const cloudFilePath = path.join(userUploadsDir, path.basename(order.fileUrl));
+            if (fs.existsSync(cloudFilePath)) {
+              fs.unlinkSync(cloudFilePath);
+              console.log(`[StorageCleanup] Removed completed document from cloud server: ${path.basename(cloudFilePath)}`);
+            }
+          }
+        } catch (delErr) {
+          console.warn('[StorageCleanup] Could not remove cloud document:', delErr);
+        }
+      }
       else if (action === 'CANCEL') order.status = 'CANCELLED';
       if (notes) order.adminNotes = notes;
       order.updatedAt = new Date().toISOString();
@@ -489,7 +505,23 @@ export function createRouter(
         });
       }
       else if (action === 'PRINTING') order.status = 'PRINTING';
-      else if (action === 'COMPLETE') order.status = 'COMPLETED';
+      else if (action === 'COMPLETE') {
+        order.status = 'COMPLETED';
+        // Auto-delete temporary cloud photo uploads to save storage space
+        try {
+          if (order.images && order.images.length > 0) {
+            for (const img of order.images) {
+              const cloudPhotoPath = path.join(userUploadsDir, path.basename(img.fileUrl));
+              if (fs.existsSync(cloudPhotoPath)) {
+                fs.unlinkSync(cloudPhotoPath);
+                console.log(`[StorageCleanup] Removed completed photo from cloud server: ${path.basename(cloudPhotoPath)}`);
+              }
+            }
+          }
+        } catch (delErr) {
+          console.warn('[StorageCleanup] Could not remove cloud photo:', delErr);
+        }
+      }
       else if (action === 'CANCEL') order.status = 'CANCELLED';
 
       savePersistedState(state);
@@ -502,7 +534,9 @@ export function createRouter(
       if (action === 'APPROVE') order.status = 'APPROVED';
       else if (action === 'SCANNER_READY') order.status = 'SCANNER_READY';
       else if (action === 'SCANNING') order.status = 'SCANNING';
-      else if (action === 'COMPLETE') order.status = 'COMPLETED';
+      else if (action === 'COMPLETE') {
+        order.status = 'COMPLETED';
+      }
       else if (action === 'CANCEL') order.status = 'CANCELLED';
 
       savePersistedState(state);
@@ -641,10 +675,16 @@ export function createRouter(
         fs.writeFileSync(finalFilePath, await mergedDoc.save());
 
         scanOrder.finalFileName = finalFileName;
-        scanOrder.finalFileUrl = `/uploads/scans/${finalFileName}`;
+        scanOrder.finalFileUrl = `/api/orders/scans/${scanOrder.id}/download`;
       } else {
-        scanOrder.finalFileName = path.basename(scanOrder.scannedPages[0].previewUrl);
-        scanOrder.finalFileUrl = scanOrder.scannedPages[0].previewUrl;
+        const firstPageName = path.basename(scanOrder.scannedPages[0].previewUrl);
+        scanOrder.finalFileName = firstPageName;
+        scanOrder.finalFileUrl = `/api/orders/scans/${scanOrder.id}/download`;
+      }
+
+      // If user requested e.g. 4 pages and admin completed with 3, recalculate fair price
+      if (scanOrder.scannedPages.length > 0) {
+        scanOrder.calculatedPrice = Math.round(scanOrder.scannedPages.length * state.pricingConfig.scanPerPageRate * 100) / 100;
       }
 
       scanOrder.status = 'DOWNLOAD_AVAILABLE';
@@ -656,6 +696,89 @@ export function createRouter(
       console.error('Error generating final scan file:', err);
       res.status(500).json({ success: false, error: err.message });
     }
+  });
+
+  // 9.5 SCAN DOWNLOAD ENDPOINTS (Direct binary attachment streams - avoids SPA index.html fallback)
+  router.get('/orders/scans/:orderId/download', (req: Request, res: Response) => {
+    const { orderId } = req.params;
+    const scanOrder = state.scanOrders.get(orderId);
+    if (!scanOrder) {
+      return res.status(404).json({ success: false, error: 'Scan order not found' });
+    }
+
+    let filePath = '';
+    const downloadName = scanOrder.finalFileName || `Scan_${scanOrder.orderNumber}.${scanOrder.format === 'PDF' ? 'pdf' : 'jpg'}`;
+
+    if (scanOrder.finalFileName) {
+      filePath = path.join(scansDir, scanOrder.finalFileName);
+    }
+    
+    if (!filePath || !fs.existsSync(filePath)) {
+      if (scanOrder.scannedPages.length > 0) {
+        const fallbackName = path.basename(scanOrder.scannedPages[0].previewUrl);
+        filePath = path.join(scansDir, fallbackName);
+      }
+    }
+
+    if (!filePath || !fs.existsSync(filePath)) {
+      return res.status(404).json({ success: false, error: 'Scanned file not found on server' });
+    }
+
+    const ext = path.extname(filePath).toLowerCase();
+    const contentType = ext === '.pdf' ? 'application/pdf' : (ext === '.png' ? 'image/png' : 'image/jpeg');
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${downloadName}"`);
+    fs.createReadStream(filePath).pipe(res);
+  });
+
+  router.get('/orders/scans/:orderId/download/page/:pageIndex', (req: Request, res: Response) => {
+    const { orderId, pageIndex } = req.params;
+    const scanOrder = state.scanOrders.get(orderId);
+    if (!scanOrder) {
+      return res.status(404).json({ success: false, error: 'Scan order not found' });
+    }
+    const idx = parseInt(pageIndex, 10);
+    const page = scanOrder.scannedPages.find(p => p.pageIndex === idx);
+    if (!page) {
+      return res.status(404).json({ success: false, error: 'Requested scan page not found' });
+    }
+    const filename = path.basename(page.previewUrl);
+    const filePath = path.join(scansDir, filename);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ success: false, error: 'Page image file not found on server' });
+    }
+    const ext = path.extname(filePath).toLowerCase();
+    const contentType = ext === '.png' ? 'image/png' : 'image/jpeg';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="Scan_${scanOrder.orderNumber}_page${idx}${ext}"`);
+    fs.createReadStream(filePath).pipe(res);
+  });
+
+  router.get('/orders/scans/:orderId/download-zip', (req: Request, res: Response) => {
+    const { orderId } = req.params;
+    const scanOrder = state.scanOrders.get(orderId);
+    if (!scanOrder || scanOrder.scannedPages.length === 0) {
+      return res.status(404).json({ success: false, error: 'No scanned pages available for download' });
+    }
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="Scan_${scanOrder.orderNumber}_AllPages.zip"`);
+
+    const archiveCreator = (archiver as any).default || archiver;
+    const archive = archiveCreator('zip', { zlib: { level: 9 } });
+    archive.pipe(res);
+
+    scanOrder.scannedPages.forEach((p, i) => {
+      const filename = path.basename(p.previewUrl);
+      const filePath = path.join(scansDir, filename);
+      if (fs.existsSync(filePath)) {
+        const ext = path.extname(filePath) || '.jpg';
+        archive.file(filePath, { name: `Page_${i + 1}${ext}` });
+      }
+    });
+
+    archive.finalize();
   });
 
   // 10. HARDWARE & DEVICES API
@@ -752,4 +875,29 @@ export function createRouter(
   });
 
   return router;
+}
+
+export function runTenDayScanRetentionCleanup(scansDir: string): void {
+  try {
+    if (!fs.existsSync(scansDir)) return;
+    const now = Date.now();
+    const tenDaysMs = 10 * 24 * 60 * 60 * 1000;
+    const files = fs.readdirSync(scansDir);
+    let count = 0;
+    for (const f of files) {
+      const fullPath = path.join(scansDir, f);
+      try {
+        const stats = fs.statSync(fullPath);
+        if (now - stats.mtimeMs > tenDaysMs) {
+          fs.unlinkSync(fullPath);
+          count++;
+        }
+      } catch {}
+    }
+    if (count > 0) {
+      console.log(`[ScanRetention] Auto-deleted ${count} scanned files older than 10 days from cloud storage`);
+    }
+  } catch (err) {
+    console.error('[ScanRetention] Error running 10-day retention cleanup:', err);
+  }
 }
