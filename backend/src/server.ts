@@ -116,6 +116,38 @@ const router = createRouter(state, broadcastEvent, rawInputsDir, () => currentAg
 
 app.use('/api', router);
 
+// Root landing page
+app.get('/', (_req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <title>Smart Xerox Hub Backend</title>
+      <style>
+        body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #f8fafc; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .card { background: #1e293b; padding: 2.5rem; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.5); text-align: center; max-width: 500px; border: 1px solid #334155; }
+        h1 { margin-top: 0; color: #38bdf8; font-size: 1.8rem; }
+        .status { display: inline-block; background: #064e3b; color: #34d399; padding: 0.4rem 1rem; border-radius: 9999px; font-weight: bold; margin-bottom: 1.5rem; }
+        p { color: #94a3b8; line-height: 1.6; }
+        a { color: #38bdf8; text-decoration: none; font-weight: 600; }
+        a:hover { text-decoration: underline; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="status">🟢 BACKEND OPERATIONAL</div>
+        <h1>Smart Xerox Hub API</h1>
+        <p>The centralized printing, scanning & order distribution server is running and ready to accept web and desktop requests.</p>
+        <p style="margin-top: 1.5rem;">
+          <a href="/api/health">Check System Health API &rarr;</a>
+        </p>
+      </div>
+    </body>
+    </html>
+  `);
+});
+
 app.get('/api/health', (_req, res) => {
   res.json({
     status: 'HEALTHY',
