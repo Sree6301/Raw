@@ -254,7 +254,15 @@ namespace SmartXeroxHub.Agent
                         var localFile = await _backendSync.EnsureLocalFileAsync(order.FileUrl, order.OriginalFileName);
                         if (order.ServiceType == "DOCUMENT")
                         {
-                            PhotoProcessor.PrintPdfDocument(localFile, printerName, order.OrderNumber);
+                            var opt = new PrintJobOptions
+                            {
+                                ColorMode = order.ColorMode,
+                                PaperSize = order.PaperSize,
+                                PaperType = order.PaperType,
+                                Dpi = 300,
+                                PagesPerSheet = 1
+                            };
+                            PhotoProcessor.PrintPdfDocument(localFile, printerName, order.OrderNumber, opt);
                         }
                         else
                         {

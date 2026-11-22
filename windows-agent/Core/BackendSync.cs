@@ -25,6 +25,8 @@ namespace SmartXeroxHub.Agent.Core
         public string DuplexStage { get; set; } = "NOT_APPLICABLE";
         public decimal CalculatedPrice { get; set; }
         public string PaperType { get; set; } = "NORMAL_A4";
+        public string PaperSize { get; set; } = "A4";
+        public PrintJobOptions? PrintSettings { get; set; }
         public string CreatedAt { get; set; } = string.Empty;
         public string LocalFilePath { get; set; } = string.Empty;
         public string Format { get; set; } = "PDF";
@@ -292,6 +294,22 @@ namespace SmartXeroxHub.Agent.Core
                 // Download / copy to RAW_Inputs/User_Uploads
                 var localFilePath = await EnsureLocalFileAsync(fileUrl, originalName);
 
+                var printOpt = new PrintJobOptions();
+                if (order.TryGetProperty("colorMode", out var cmProp)) printOpt.ColorMode = cmProp.GetString() ?? "BW";
+                if (order.TryGetProperty("paperSize", out var psProp)) printOpt.PaperSize = psProp.GetString() ?? "A4";
+                if (order.TryGetProperty("paperType", out var ptProp)) printOpt.PaperType = ptProp.GetString() ?? "NORMAL_A4";
+
+                if (order.TryGetProperty("printSettings", out var ps))
+                {
+                    if (ps.TryGetProperty("dpi", out var d)) printOpt.Dpi = d.GetInt32();
+                    if (ps.TryGetProperty("pagesPerSheet", out var pps)) printOpt.PagesPerSheet = pps.GetInt32();
+                    if (ps.TryGetProperty("orientation", out var o)) printOpt.Orientation = o.GetString() ?? "PORTRAIT";
+                    if (ps.TryGetProperty("scalePercent", out var sc)) printOpt.ScalePercent = sc.GetDouble();
+                    if (ps.TryGetProperty("paperType", out var pt2)) printOpt.PaperType = pt2.GetString() ?? printOpt.PaperType;
+                    if (ps.TryGetProperty("paperSize", out var psz2)) printOpt.PaperSize = psz2.GetString() ?? printOpt.PaperSize;
+                    if (ps.TryGetProperty("colorMode", out var cm2)) printOpt.ColorMode = cm2.GetString() ?? printOpt.ColorMode;
+                }
+
                 if (serviceType == "DOCUMENT")
                 {
                     string sides = order.GetProperty("sides").GetString()!;
@@ -300,7 +318,7 @@ namespace SmartXeroxHub.Agent.Core
 
                     if (sides == "MANUAL_DUPLEX")
                     {
-                        var duplexJob = _duplexProcessor.PrepareDuplexFiles(orderId, orderNum, localFilePath, copies, printerName);
+                        var duplexJob = _duplexProcessor.PrepareDuplexFiles(orderId, orderNum, localFilePath, copies, printerName, printOpt.PagesPerSheet, printOpt);
                         _recoveryManager.TrackDuplexJob(duplexJob);
                         _duplexProcessor.PrintFirstSide(duplexJob);
                         await UpdateDuplexStageOnBackendAsync(orderId, "AWAITING_PAPER_REVERSAL");
@@ -309,7 +327,7 @@ namespace SmartXeroxHub.Agent.Core
                     {
                         for (int c = 1; c <= copies; c++)
                         {
-                            PhotoProcessor.PrintPdfDocument(localFilePath, printerName, $"{orderNum}_Copy{c}");
+                            PhotoProcessor.PrintPdfDocument(localFilePath, printerName, $"{orderNum}_Copy{c}", printOpt);
                         }
                         await UpdateOrderStatusOnBackendAsync(orderId, "DOCUMENT", "COMPLETE");
                     }
@@ -323,7 +341,7 @@ namespace SmartXeroxHub.Agent.Core
 
                     for (int c = 1; c <= copies; c++)
                     {
-                        PhotoProcessor.PrintPhoto(localFilePath, printerName, paperType, colorMode, "FIT", $"{orderNum}_Photo_Copy{c}");
+                        PhotoProcessor.PrintPhoto(localFilePath, printerName, paperType, colorMode, "FIT", $"{orderNum}_Photo_Copy{c}", printOpt.ScalePercent, printOpt.Orientation);
                     }
                     await UpdateOrderStatusOnBackendAsync(orderId, "PHOTO", "COMPLETE");
                 }
@@ -381,7 +399,7 @@ namespace SmartXeroxHub.Agent.Core
                     {
                         string fUrl = d.GetProperty("fileUrl").GetString()!;
                         string loc = Path.Combine(_rawUploadsDir, Path.GetFileName(fUrl));
-                        list.Add(new BackendOrderDto
+                        var docItem = new BackendOrderDto
                         {
                             Id = d.GetProperty("id").GetString()!,
                             OrderNumber = d.GetProperty("orderNumber").GetString()!,
@@ -396,8 +414,22 @@ namespace SmartXeroxHub.Agent.Core
                             Sides = d.GetProperty("sides").GetString()!,
                             DuplexStage = d.TryGetProperty("duplexStage", out var ds) ? ds.GetString()! : "NOT_APPLICABLE",
                             CalculatedPrice = d.GetProperty("calculatedPrice").GetDecimal(),
+                            PaperType = d.TryGetProperty("paperType", out var pt) ? pt.GetString()! : "NORMAL_A4",
+                            PaperSize = d.TryGetProperty("paperSize", out var psz) ? psz.GetString()! : "A4",
                             CreatedAt = d.GetProperty("createdAt").GetString()!
-                        });
+                        };
+                        if (d.TryGetProperty("printSettings", out var psVal))
+                        {
+                            docItem.PrintSettings = new PrintJobOptions
+                            {
+                                Dpi = psVal.TryGetProperty("dpi", out var dpi) ? dpi.GetInt32() : 300,
+                                PagesPerSheet = psVal.TryGetProperty("pagesPerSheet", out var pps) ? pps.GetInt32() : 1,
+                                Orientation = psVal.TryGetProperty("orientation", out var ori) ? ori.GetString() ?? "PORTRAIT" : "PORTRAIT",
+                                ScalePercent = psVal.TryGetProperty("scalePercent", out var sc) ? sc.GetDouble() : 100.0,
+                                Scope = psVal.TryGetProperty("scope", out var scp) ? scp.GetString() ?? "ALL_PAGES" : "ALL_PAGES"
+                            };
+                        }
+                        list.Add(docItem);
                     }
                 }
 
@@ -414,7 +446,8 @@ namespace SmartXeroxHub.Agent.Core
                         }
                         string loc = !string.IsNullOrEmpty(fileUrl) ? Path.Combine(_rawUploadsDir, Path.GetFileName(fileUrl)) : "";
 
-                        list.Add(new BackendOrderDto
+                        string pType = p.TryGetProperty("paperType", out var ptProp) ? ptProp.GetString()! : "PHOTO_4X6";
+                        var photoItem = new BackendOrderDto
                         {
                             Id = p.GetProperty("id").GetString()!,
                             OrderNumber = p.GetProperty("orderNumber").GetString()!,
@@ -426,10 +459,23 @@ namespace SmartXeroxHub.Agent.Core
                             TotalPages = 1,
                             Copies = p.GetProperty("copies").GetInt32(),
                             ColorMode = p.GetProperty("colorMode").GetString()!,
-                            PaperType = p.GetProperty("paperType").GetString()!,
+                            PaperType = pType,
+                            PaperSize = pType.Contains("4X6", StringComparison.OrdinalIgnoreCase) ? "4X6" : "A4",
                             CalculatedPrice = p.GetProperty("calculatedPrice").GetDecimal(),
                             CreatedAt = p.GetProperty("createdAt").GetString()!
-                        });
+                        };
+                        if (p.TryGetProperty("printSettings", out var psVal2))
+                        {
+                            photoItem.PrintSettings = new PrintJobOptions
+                            {
+                                Dpi = psVal2.TryGetProperty("dpi", out var dpi) ? dpi.GetInt32() : 600,
+                                PagesPerSheet = psVal2.TryGetProperty("pagesPerSheet", out var pps) ? pps.GetInt32() : 1,
+                                Orientation = psVal2.TryGetProperty("orientation", out var ori) ? ori.GetString() ?? "PORTRAIT" : "PORTRAIT",
+                                ScalePercent = psVal2.TryGetProperty("scalePercent", out var sc) ? sc.GetDouble() : 100.0,
+                                Scope = psVal2.TryGetProperty("scope", out var scp) ? scp.GetString() ?? "ALL_PAGES" : "ALL_PAGES"
+                            };
+                        }
+                        list.Add(photoItem);
                     }
                 }
 

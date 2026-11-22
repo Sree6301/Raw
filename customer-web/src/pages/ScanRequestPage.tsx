@@ -105,50 +105,7 @@ export function ScanRequestPage() {
               <Divider sx={{ my: 2 }} />
 
               <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#334155' }}>
-                2. Scan Resolution (DPI)
-              </Typography>
-              <RadioGroup
-                value={resolution}
-                onChange={(e) => setResolution(parseInt(e.target.value, 10))}
-              >
-                <FormControlLabel
-                  value={300}
-                  control={<Radio />}
-                  label={
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>300 DPI (Standard - Crisp & Fast)</Typography>
-                      <Typography variant="caption" color="text.secondary">Optimal for IDs, letters, certificates, assignments</Typography>
-                    </Box>
-                  }
-                />
-                <FormControlLabel
-                  value={600}
-                  control={<Radio />}
-                  label={
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>600 DPI (High Definition)</Typography>
-                      <Typography variant="caption" color="text.secondary">For fine graphics, archival photos, detailed stamps</Typography>
-                    </Box>
-                  }
-                  sx={{ mt: 1 }}
-                />
-                <FormControlLabel
-                  value={150}
-                  control={<Radio />}
-                  label={
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>150 DPI (Compact File Size)</Typography>
-                      <Typography variant="caption" color="text.secondary">For email drafts and quick sharing</Typography>
-                    </Box>
-                  }
-                  sx={{ mt: 1 }}
-                />
-              </RadioGroup>
-
-              <Divider sx={{ my: 2 }} />
-
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#334155' }}>
-                3. Color Mode
+                2. Color Mode
               </Typography>
               <RadioGroup
                 row

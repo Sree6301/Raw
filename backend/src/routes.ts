@@ -383,13 +383,40 @@ export function createRouter(
     });
   });
 
-  // 7. DIRECT PRINT TRIGGER (from Admin Portal or Desktop Agent)
-  router.post('/admin/orders/:orderId/print', (req: Request, res: Response) => {
+  // 6.5 SAVE ORDER PRINT SETTINGS (from Admin Modal)
+  router.post('/admin/orders/:orderId/settings', (req: Request, res: Response) => {
     const { orderId } = req.params;
-    const { printerName } = req.body;
+    const { printSettings } = req.body;
 
     if (state.printOrders.has(orderId)) {
       const order = state.printOrders.get(orderId)!;
+      order.printSettings = printSettings;
+      order.updatedAt = new Date().toISOString();
+      savePersistedState(state);
+      broadcastEvent('ORDER_UPDATED', { order });
+      return res.json({ success: true, order });
+    }
+
+    if (state.photoOrders.has(orderId)) {
+      const order = state.photoOrders.get(orderId)!;
+      order.printSettings = printSettings;
+      order.updatedAt = new Date().toISOString();
+      savePersistedState(state);
+      broadcastEvent('ORDER_UPDATED', { order });
+      return res.json({ success: true, order });
+    }
+
+    res.status(404).json({ success: false, error: 'Order not found' });
+  });
+
+  // 7. DIRECT PRINT TRIGGER (from Admin Portal or Desktop Agent)
+  router.post('/admin/orders/:orderId/print', (req: Request, res: Response) => {
+    const { orderId } = req.params;
+    const { printerName, printSettings } = req.body;
+
+    if (state.printOrders.has(orderId)) {
+      const order = state.printOrders.get(orderId)!;
+      if (printSettings) order.printSettings = printSettings;
       order.status = order.sides === 'MANUAL_DUPLEX' ? 'FIRST_SIDE_PRINTING' : 'APPROVED';
       order.updatedAt = new Date().toISOString();
 
@@ -406,6 +433,7 @@ export function createRouter(
 
     if (state.photoOrders.has(orderId)) {
       const order = state.photoOrders.get(orderId)!;
+      if (printSettings) order.printSettings = printSettings;
       order.status = 'APPROVED';
 
       savePersistedState(state);
@@ -423,10 +451,11 @@ export function createRouter(
 
   router.post('/admin/orders/:orderId/action', (req: Request, res: Response) => {
     const { orderId } = req.params;
-    const { action, serviceType, notes } = req.body;
+    const { action, serviceType, notes, printSettings } = req.body;
 
     if (serviceType === 'DOCUMENT' && state.printOrders.has(orderId)) {
       const order = state.printOrders.get(orderId)!;
+      if (printSettings) order.printSettings = printSettings;
       if (action === 'APPROVE') {
         order.status = 'APPROVED';
         broadcastEvent('PRINT_TRIGGERED', {

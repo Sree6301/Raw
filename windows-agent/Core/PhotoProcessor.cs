@@ -1,20 +1,35 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Drawing.Printing;
 using System.IO;
+using System.Runtime.InteropServices;
+using Docnet.Core;
+using Docnet.Core.Models;
+using Docnet.Core.Readers;
 
 namespace SmartXeroxHub.Agent.Core
 {
+    public class PrintJobOptions
+    {
+        public int Dpi { get; set; } = 300;
+        public int PagesPerSheet { get; set; } = 1; // 1, 2, or 4
+        public string Orientation { get; set; } = "PORTRAIT"; // PORTRAIT, LANDSCAPE, AUTO
+        public double ScalePercent { get; set; } = 100.0;
+        public string PaperSize { get; set; } = "A4"; // A4, 4X6
+        public string PaperType { get; set; } = "NORMAL_A4"; // NORMAL_A4, PHOTO_A4, PHOTO_4X6
+        public string ColorMode { get; set; } = "BW"; // BW, COLOR
+        public string Scope { get; set; } = "ALL_PAGES"; // ALL_PAGES, CURRENT_PAGE
+        public List<int>? PageNumbers { get; set; } = null; // null = all pages (1-based)
+        public Dictionary<int, double>? PageScales { get; set; } = null; // 1-based page -> scale percent
+        public Dictionary<int, string>? PageOrientations { get; set; } = null; // 1-based page -> orientation
+    }
+
     public static class PhotoProcessor
     {
-        private static readonly string EdgePath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
-            "Microsoft", "Edge", "Application", "msedge.exe"
-        );
-
         /// <summary>
         /// Prints an image directly to the HP Smart Tank 589 on photo paper without any watermark or overlay.
         /// </summary>
@@ -24,7 +39,9 @@ namespace SmartXeroxHub.Agent.Core
             string paperType, // "PHOTO_A4" or "PHOTO_4X6"
             string colorMode, // "COLOR" or "BW"
             string fitMode,   // "FIT" or "FILL"
-            string docTitle = "SmartXerox_Photo"
+            string docTitle = "SmartXerox_Photo",
+            double scalePercent = 100.0,
+            string orientation = "PORTRAIT"
         )
         {
             if (!File.Exists(imagePath))
@@ -39,17 +56,16 @@ namespace SmartXeroxHub.Agent.Core
                 printDoc.PrinterSettings.PrinterName = printerName;
                 printDoc.DocumentName = docTitle;
 
-                // Setup Paper Size
-                // A4: 210 x 297 mm -> 827 x 1169 hundredths of an inch
-                // 4x6: 4 x 6 inch -> 400 x 600 hundredths of an inch
+                var is4x6 = paperType == "PHOTO_4X6";
                 var paperSize = new PaperSize(
-                    paperType == "PHOTO_4X6" ? "4x6" : "A4",
-                    paperType == "PHOTO_4X6" ? 400 : 827,
-                    paperType == "PHOTO_4X6" ? 600 : 1169
+                    is4x6 ? "4x6" : "A4",
+                    is4x6 ? 400 : 827,
+                    is4x6 ? 600 : 1169
                 );
                 printDoc.DefaultPageSettings.PaperSize = paperSize;
                 printDoc.DefaultPageSettings.Margins = new Margins(10, 10, 10, 10);
                 printDoc.DefaultPageSettings.Color = (colorMode == "COLOR");
+                printDoc.DefaultPageSettings.Landscape = (orientation == "LANDSCAPE");
 
                 using var originalBmp = new Bitmap(imagePath);
 
@@ -61,26 +77,22 @@ namespace SmartXeroxHub.Agent.Core
                     var srcW = originalBmp.Width;
                     var srcH = originalBmp.Height;
 
-                    // Compute aspect ratio rectangle
-                    Rectangle destRect;
+                    float scale;
                     if (fitMode == "FILL")
                     {
-                        var scale = Math.Max((float)printableArea.Width / srcW, (float)printableArea.Height / srcH);
-                        var w = (int)(srcW * scale);
-                        var h = (int)(srcH * scale);
-                        var x = printableArea.X + (printableArea.Width - w) / 2;
-                        var y = printableArea.Y + (printableArea.Height - h) / 2;
-                        destRect = new Rectangle(x, y, w, h);
+                        scale = Math.Max((float)printableArea.Width / srcW, (float)printableArea.Height / srcH);
                     }
-                    else // FIT
+                    else
                     {
-                        var scale = Math.Min((float)printableArea.Width / srcW, (float)printableArea.Height / srcH);
-                        var w = (int)(srcW * scale);
-                        var h = (int)(srcH * scale);
-                        var x = printableArea.X + (printableArea.Width - w) / 2;
-                        var y = printableArea.Y + (printableArea.Height - h) / 2;
-                        destRect = new Rectangle(x, y, w, h);
+                        scale = Math.Min((float)printableArea.Width / srcW, (float)printableArea.Height / srcH);
                     }
+                    scale *= (float)(scalePercent / 100.0);
+
+                    var w = (int)(srcW * scale);
+                    var h = (int)(srcH * scale);
+                    var x = printableArea.X + (printableArea.Width - w) / 2;
+                    var y = printableArea.Y + (printableArea.Height - h) / 2;
+                    var destRect = new Rectangle(x, y, w, h);
 
                     e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
                     e.Graphics.SmoothingMode = SmoothingMode.HighQuality;
@@ -88,7 +100,6 @@ namespace SmartXeroxHub.Agent.Core
 
                     if (colorMode == "BW")
                     {
-                        // Apply Grayscale ColorMatrix
                         var colorMatrix = new ColorMatrix(new float[][]
                         {
                             new float[] {.3f, .3f, .3f, 0, 0},
@@ -100,13 +111,7 @@ namespace SmartXeroxHub.Agent.Core
                         using var imageAttributes = new ImageAttributes();
                         imageAttributes.SetColorMatrix(colorMatrix);
 
-                        e.Graphics.DrawImage(
-                            originalBmp,
-                            destRect,
-                            0, 0, srcW, srcH,
-                            GraphicsUnit.Pixel,
-                            imageAttributes
-                        );
+                        e.Graphics.DrawImage(originalBmp, destRect, 0, 0, srcW, srcH, GraphicsUnit.Pixel, imageAttributes);
                     }
                     else
                     {
@@ -128,9 +133,39 @@ namespace SmartXeroxHub.Agent.Core
         }
 
         /// <summary>
-        /// Prints a PDF document to the HP printer using official Windows spooler with zero watermarks or mock text.
+        /// Renders a PDF page from Docnet.Core IDocReader into a GDI+ Bitmap.
         /// </summary>
-        public static bool PrintPdfDocument(string pdfPath, string printerName, string docTitle)
+        private static Bitmap RenderPdfPage(IDocReader docReader, int pageIndex, int dpi)
+        {
+            using var pageReader = docReader.GetPageReader(pageIndex);
+            int width = pageReader.GetPageWidth();
+            int height = pageReader.GetPageHeight();
+            byte[] rawBytes = pageReader.GetImage(); // BGRA raw bytes
+
+            var bmp = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+            var bmpData = bmp.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, bmp.PixelFormat);
+            try
+            {
+                Marshal.Copy(rawBytes, 0, bmpData.Scan0, rawBytes.Length);
+            }
+            finally
+            {
+                bmp.UnlockBits(bmpData);
+            }
+            bmp.SetResolution(dpi, dpi);
+            return bmp;
+        }
+
+        /// <summary>
+        /// Prints a PDF document to the HP printer using official Windows GDI+ spooler (PrintDocument)
+        /// with zero external browser dependencies, supporting N-up (1, 2, 4 pages/sheet), scaling, and rotation.
+        /// </summary>
+        public static bool PrintPdfDocument(
+            string pdfPath,
+            string printerName,
+            string docTitle,
+            PrintJobOptions? options = null
+        )
         {
             if (!File.Exists(pdfPath))
             {
@@ -138,56 +173,176 @@ namespace SmartXeroxHub.Agent.Core
                 return false;
             }
 
-            LoggingManager.Info($"[PhotoProcessor] Submitting PDF to HP Spooler: '{pdfPath}' -> '{printerName}'");
+            options ??= new PrintJobOptions();
+            int dpi = options.Dpi > 0 ? options.Dpi : 300;
+            int pagesPerSheet = options.PagesPerSheet is 2 or 4 ? options.PagesPerSheet : 1;
 
-            // Method 1: Silent print via Microsoft Edge native PDF print engine
-            if (File.Exists(EdgePath))
-            {
-                try
-                {
-                    var psi = new ProcessStartInfo
-                    {
-                        FileName = EdgePath,
-                        Arguments = $"--headless --print-to-printer --print-to-printer-name=\"{printerName}\" \"{pdfPath}\"",
-                        CreateNoWindow = true,
-                        WindowStyle = ProcessWindowStyle.Hidden,
-                        UseShellExecute = false
-                    };
+            LoggingManager.Info($"[PhotoProcessor] Spooling PDF: '{pdfPath}' -> '{printerName}' ({pagesPerSheet} pg/sheet, {options.ColorMode}, {dpi} DPI)");
 
-                    using var proc = Process.Start(psi);
-                    if (proc != null)
-                    {
-                        proc.WaitForExit(30000); // Wait up to 30s
-                        LoggingManager.Info($"[PhotoProcessor] PDF successfully sent via native Edge print engine to '{printerName}' (Exit Code: {proc.ExitCode})");
-                        return true;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    LoggingManager.Warn($"[PhotoProcessor] Edge print engine notice: {ex.Message}. Falling back to Windows Shell printto verb.");
-                }
-            }
-
-            // Method 2: Native Windows Shell printto verb
             try
             {
-                var psi = new ProcessStartInfo
+                using var docReader = DocLib.Instance.GetDocReader(pdfPath, new PageDimensions(dpi / 72.0));
+                int totalPdfPages = docReader.GetPageCount();
+                if (totalPdfPages == 0)
                 {
-                    FileName = pdfPath,
-                    Verb = "printto",
-                    Arguments = $"\"{printerName}\"",
-                    CreateNoWindow = true,
-                    WindowStyle = ProcessWindowStyle.Hidden,
-                    UseShellExecute = true
+                    LoggingManager.Warn("[PhotoProcessor] PDF contains 0 pages.");
+                    return false;
+                }
+
+                // Determine ordered list of page indices (0-based) to print
+                List<int> pagesToPrint = new();
+                if (options.PageNumbers != null && options.PageNumbers.Count > 0)
+                {
+                    foreach (var p in options.PageNumbers)
+                    {
+                        if (p >= 1 && p <= totalPdfPages) pagesToPrint.Add(p - 1);
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < totalPdfPages; i++) pagesToPrint.Add(i);
+                }
+
+                if (pagesToPrint.Count == 0)
+                {
+                    LoggingManager.Warn("[PhotoProcessor] No valid pages selected to print.");
+                    return false;
+                }
+
+                int totalSheets = (int)Math.Ceiling((double)pagesToPrint.Count / pagesPerSheet);
+                int currentSheetIndex = 0;
+
+                using var printDoc = new PrintDocument();
+                printDoc.PrinterSettings.PrinterName = printerName;
+                printDoc.DocumentName = string.IsNullOrWhiteSpace(docTitle) ? Path.GetFileNameWithoutExtension(pdfPath) : docTitle;
+
+                var isPhoto4x6 = options.PaperSize == "PHOTO_4X6" || options.PaperType == "PHOTO_4X6";
+                var paperSize = new PaperSize(
+                    isPhoto4x6 ? "4x6" : "A4",
+                    isPhoto4x6 ? 400 : 827,
+                    isPhoto4x6 ? 600 : 1169
+                );
+                printDoc.DefaultPageSettings.PaperSize = paperSize;
+                printDoc.DefaultPageSettings.Margins = new Margins(15, 15, 15, 15);
+                printDoc.DefaultPageSettings.Color = (options.ColorMode == "COLOR");
+                printDoc.DefaultPageSettings.Landscape = (options.Orientation == "LANDSCAPE");
+
+                // Grayscale color matrix for black & white printing
+                var grayMatrix = new ColorMatrix(new float[][]
+                {
+                    new float[] {.3f, .3f, .3f, 0, 0},
+                    new float[] {.59f, .59f, .59f, 0, 0},
+                    new float[] {.11f, .11f, .11f, 0, 0},
+                    new float[] {0, 0, 0, 1, 0},
+                    new float[] {0, 0, 0, 0, 1}
+                });
+
+                printDoc.PrintPage += (sender, e) =>
+                {
+                    if (e.Graphics == null) return;
+
+                    var printableArea = e.MarginBounds;
+                    e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                    e.Graphics.SmoothingMode = SmoothingMode.HighQuality;
+                    e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+                    int startIndex = currentSheetIndex * pagesPerSheet;
+                    int countThisSheet = Math.Min(pagesPerSheet, pagesToPrint.Count - startIndex);
+
+                    // Compute grid slot bounds
+                    List<Rectangle> slots = new();
+                    if (pagesPerSheet == 1)
+                    {
+                        slots.Add(printableArea);
+                    }
+                    else if (pagesPerSheet == 2)
+                    {
+                        if (printableArea.Width > printableArea.Height)
+                        {
+                            // Landscape: 2 columns
+                            int halfW = printableArea.Width / 2;
+                            slots.Add(new Rectangle(printableArea.X, printableArea.Y, halfW - 10, printableArea.Height));
+                            slots.Add(new Rectangle(printableArea.X + halfW + 10, printableArea.Y, halfW - 10, printableArea.Height));
+                        }
+                        else
+                        {
+                            // Portrait: 2 rows
+                            int halfH = printableArea.Height / 2;
+                            slots.Add(new Rectangle(printableArea.X, printableArea.Y, printableArea.Width, halfH - 10));
+                            slots.Add(new Rectangle(printableArea.X, printableArea.Y + halfH + 10, printableArea.Width, halfH - 10));
+                        }
+                    }
+                    else // 4 pages per sheet (2x2 grid)
+                    {
+                        int halfW = printableArea.Width / 2;
+                        int halfH = printableArea.Height / 2;
+                        slots.Add(new Rectangle(printableArea.X, printableArea.Y, halfW - 8, halfH - 8));
+                        slots.Add(new Rectangle(printableArea.X + halfW + 8, printableArea.Y, halfW - 8, halfH - 8));
+                        slots.Add(new Rectangle(printableArea.X, printableArea.Y + halfH + 8, halfW - 8, halfH - 8));
+                        slots.Add(new Rectangle(printableArea.X + halfW + 8, printableArea.Y + halfH + 8, halfW - 8, halfH - 8));
+                    }
+
+                    for (int s = 0; s < countThisSheet; s++)
+                    {
+                        int pageIdx = pagesToPrint[startIndex + s];
+                        int pageNumber = pageIdx + 1; // 1-based
+
+                        using var pageBmp = RenderPdfPage(docReader, pageIdx, dpi);
+
+                        // Per-page or global scale
+                        double scaleFactor = options.ScalePercent / 100.0;
+                        if (options.PageScales != null && options.PageScales.TryGetValue(pageNumber, out var customScale))
+                        {
+                            scaleFactor = customScale / 100.0;
+                        }
+
+                        // Per-page or global orientation
+                        string orientation = options.Orientation;
+                        if (options.PageOrientations != null && options.PageOrientations.TryGetValue(pageNumber, out var customOrient))
+                        {
+                            orientation = customOrient;
+                        }
+
+                        if (orientation == "LANDSCAPE" && pageBmp.Width < pageBmp.Height)
+                        {
+                            pageBmp.RotateFlip(RotateFlipType.Rotate90FlipNone);
+                        }
+                        else if (orientation == "PORTRAIT" && pageBmp.Width > pageBmp.Height)
+                        {
+                            pageBmp.RotateFlip(RotateFlipType.Rotate270FlipNone);
+                        }
+
+                        var slot = slots[s];
+                        float aspectScale = Math.Min((float)slot.Width / pageBmp.Width, (float)slot.Height / pageBmp.Height) * (float)scaleFactor;
+                        int drawW = (int)(pageBmp.Width * aspectScale);
+                        int drawH = (int)(pageBmp.Height * aspectScale);
+                        int drawX = slot.X + (slot.Width - drawW) / 2;
+                        int drawY = slot.Y + (slot.Height - drawH) / 2;
+                        var destRect = new Rectangle(drawX, drawY, drawW, drawH);
+
+                        if (options.ColorMode == "BW")
+                        {
+                            using var imgAttr = new ImageAttributes();
+                            imgAttr.SetColorMatrix(grayMatrix);
+                            e.Graphics.DrawImage(pageBmp, destRect, 0, 0, pageBmp.Width, pageBmp.Height, GraphicsUnit.Pixel, imgAttr);
+                        }
+                        else
+                        {
+                            e.Graphics.DrawImage(pageBmp, destRect);
+                        }
+                    }
+
+                    currentSheetIndex++;
+                    e.HasMorePages = (currentSheetIndex < totalSheets);
                 };
 
-                using var proc = Process.Start(psi);
-                LoggingManager.Info($"[PhotoProcessor] PDF sent via Windows Shell printto verb to '{printerName}'.");
+                printDoc.Print();
+                LoggingManager.Info($"[PhotoProcessor] PDF successfully spooled directly to '{printerName}'! Physical sheets: {totalSheets}");
                 return true;
             }
             catch (Exception ex)
             {
-                LoggingManager.Error($"[PhotoProcessor] Shell printto failed for '{pdfPath}'", ex);
+                LoggingManager.Error($"[PhotoProcessor] Failed to spool PDF '{pdfPath}'", ex);
                 return false;
             }
         }

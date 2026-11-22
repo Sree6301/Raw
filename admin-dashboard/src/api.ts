@@ -116,3 +116,21 @@ export async function updateShopSettings(pricing: Partial<ShopPricingConfig>) {
   });
   return res.json();
 }
+
+export async function saveOrderPrintSettings(orderId: string, printSettings: any) {
+  const res = await fetch(`${API_BASE}/api/admin/orders/${orderId}/settings`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ printSettings })
+  });
+  return res.json();
+}
+
+export async function triggerDirectPrint(orderId: string, printerName?: string, printSettings?: any) {
+  const res = await fetch(`${API_BASE}/api/admin/orders/${orderId}/print`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ printerName, printSettings })
+  });
+  return res.json();
+}

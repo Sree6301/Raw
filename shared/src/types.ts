@@ -43,6 +43,7 @@ export type PhotoOrderStatus =
   | 'PRINTING'
   | 'COMPLETED'
   | 'FAILED'
+  | 'REJECTED'
   | 'CANCELLED';
 
 export type ScanOrderStatus =
@@ -61,8 +62,8 @@ export type ScanOrderStatus =
   | 'CANCELLED';
 
 // 2. Paper & Media Types
-export type PaperSize = 'A4' | 'PHOTO_4X6';
-export type PaperType = 'NORMAL_A4' | 'PHOTO_A4' | 'PHOTO_4X6';
+export type PaperSize = 'A4' | 'PHOTO_4X6' | '4X6';
+export type PaperType = 'NORMAL_A4' | 'PHOTO_A4' | 'PHOTO_4X6' | 'PHOTO_GLOSSY_4X6' | 'PHOTO_GLOSSY_A4' | 'PHOTO_MATTE_A4';
 export type PrintColorMode = 'BW' | 'COLOR';
 export type PrintSides = 'SINGLE' | 'MANUAL_DUPLEX';
 export type PhotoFitMode = 'FIT' | 'FILL' | 'CROP';
@@ -83,6 +84,21 @@ export interface GuestSession {
   customerPhone?: string;
   createdAt: string;
   expiresAt: string;
+}
+
+export interface OrderPrintSettings {
+  dpi: number;
+  pagesPerSheet: 1 | 2 | 4;
+  orientation: 'PORTRAIT' | 'LANDSCAPE' | 'AUTO';
+  scalePercent: number; // 50 - 150
+  applyScope?: 'ALL' | 'PAGE';
+  scope?: 'ALL_PAGES' | 'CURRENT_PAGE';
+  targetPage?: number;
+  paperType: PaperType;
+  paperSize: PaperSize;
+  colorMode: PrintColorMode;
+  pageScales?: Record<number, number>;
+  pageOrientations?: Record<number, 'PORTRAIT' | 'LANDSCAPE'>;
 }
 
 export interface PrintOrder {
@@ -106,6 +122,7 @@ export interface PrintOrder {
   paymentStatus: 'UNPAID' | 'CASH_CONFIRMED' | 'UPI_CONFIRMED';
   paymentReference?: string;
   adminNotes?: string;
+  printSettings?: OrderPrintSettings;
   createdAt: string;
   updatedAt: string;
 }
@@ -142,7 +159,9 @@ export interface PhotoOrder {
   photosPerSheet: 1 | 2 | 4;
   calculatedPrice: number;
   paymentStatus: 'UNPAID' | 'CASH_CONFIRMED' | 'UPI_CONFIRMED';
+  printSettings?: OrderPrintSettings;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface ScanOrder {
@@ -205,6 +224,10 @@ export interface ShopPricingConfig {
   scanPerPageRate: number; // e.g. 10.00
   shopUpiId: string;
   shopName: string;
+  defaultBwDpi?: number;
+  defaultColorDpi?: number;
+  defaultPhotoDpi?: number;
+  defaultScanDpi?: number;
 }
 
 /**

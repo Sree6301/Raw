@@ -125,7 +125,11 @@ export function initDefaultState(): AppState {
       photo4x6Rate: 20.0,
       scanPerPageRate: 10.0,
       shopUpiId: 'smartxerox@upi',
-      shopName: 'SMART XEROX HUB'
+      shopName: 'SMART XEROX HUB',
+      defaultBwDpi: 300,
+      defaultColorDpi: 300,
+      defaultPhotoDpi: 600,
+      defaultScanDpi: 300
     },
     auditLogs: []
   };

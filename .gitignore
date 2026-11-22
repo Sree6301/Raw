@@ -36,6 +36,7 @@ installer/releases/
 .env
 .env.local
 .env.*.local
+.gemini/
 
 # OS Files
 .DS_Store

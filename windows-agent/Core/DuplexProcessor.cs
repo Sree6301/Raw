@@ -36,6 +36,8 @@ namespace SmartXeroxHub.Agent.Core
         public int CurrentCopyIndex { get; set; } = 1;
         public DuplexStage Stage { get; set; } = DuplexStage.AWAITING_APPROVAL;
         public string TargetPrinterName { get; set; } = string.Empty;
+        public int PagesPerSheet { get; set; } = 1;
+        public PrintJobOptions? PrintOptions { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;
     }
 
@@ -69,36 +71,75 @@ namespace SmartXeroxHub.Agent.Core
         }
 
         /// <summary>
-        /// Generates the two separate print-ready PDF files according to section 7 mathematical logic:
-        /// First file: Odd pages 1, 3, 5, ... ascending.
-        /// Second file: Reverse even pages N', N'-2, ... 2 descending.
+        /// Generates the two separate print-ready PDF files supporting 1, 2, or 4 pages per sheet (N-up duplex).
+        /// Pass 1 (Front/Odd): Sheets 1..S ascending.
+        /// Pass 2 (Back/Reverse Even): Sheets S..1 descending.
         /// </summary>
-        public DuplexJob PrepareDuplexFiles(string orderId, string orderNumber, string inputPdfPath, int copies, string printerName)
+        public DuplexJob PrepareDuplexFiles(
+            string orderId,
+            string orderNumber,
+            string inputPdfPath,
+            int copies,
+            string printerName,
+            int pagesPerSheet = 1,
+            PrintJobOptions? options = null
+        )
         {
-            LoggingManager.Info($"[DuplexProcessor] Preparing duplex job {orderNumber} (Copies: {copies})");
+            pagesPerSheet = pagesPerSheet is 2 or 4 ? pagesPerSheet : 1;
+            options ??= new PrintJobOptions();
+            options.PagesPerSheet = pagesPerSheet;
 
-            var (normalizedPdfPath, normalizedTotal, blankAppended) = PdfProcessor.NormalizePdfForDuplex(inputPdfPath, _workDir);
+            LoggingManager.Info($"[DuplexProcessor] Preparing duplex job {orderNumber} (Copies: {copies}, Pages/Sheet: {pagesPerSheet})");
 
-            using var normDoc = PdfReader.Open(normalizedPdfPath, PdfDocumentOpenMode.Import);
+            using var inDoc = PdfReader.Open(inputPdfPath, PdfDocumentOpenMode.Import);
+            int origCount = inDoc.PageCount;
+            int multiplier = pagesPerSheet * 2; // e.g. 1*2=2, 2*2=4, 4*2=8
+            int totalSheets = (int)Math.Ceiling((double)origCount / multiplier);
+            int totalSlots = totalSheets * multiplier;
 
-            // 1. First Print File: Odd pages (1, 3, 5, 7...) ascending (0-indexed: 0, 2, 4...)
+            // Build padded document with blank pages if needed
+            var workingPdfPath = Path.Combine(_workDir, $"{orderId}_padded.pdf");
+            using (var padDoc = new PdfDocument())
+            {
+                for (int i = 0; i < origCount; i++)
+                {
+                    padDoc.AddPage(inDoc.Pages[i]);
+                }
+                for (int i = origCount; i < totalSlots; i++)
+                {
+                    padDoc.AddPage();
+                }
+                padDoc.Save(workingPdfPath);
+            }
+
+            using var normDoc = PdfReader.Open(workingPdfPath, PdfDocumentOpenMode.Import);
+
+            // 1. First Print File (Front/Odd side): Sheets 0 to totalSheets - 1
             var oddPdfPath = Path.Combine(_workDir, $"{orderId}_odd_pages.pdf");
             using (var oddDoc = new PdfDocument())
             {
-                for (int p = 1; p <= normalizedTotal; p += 2)
+                for (int s = 0; s < totalSheets; s++)
                 {
-                    oddDoc.AddPage(normDoc.Pages[p - 1]);
+                    int baseIdx = s * multiplier;
+                    for (int k = 0; k < pagesPerSheet; k++)
+                    {
+                        oddDoc.AddPage(normDoc.Pages[baseIdx + k]);
+                    }
                 }
                 oddDoc.Save(oddPdfPath);
             }
 
-            // 2. Second Print File: Even pages descending (N', N'-2, N'-4... 2) (0-indexed: N'-1, N'-3...)
+            // 2. Second Print File (Back/Reverse Even side): Sheets totalSheets - 1 down to 0
             var evenReversePdfPath = Path.Combine(_workDir, $"{orderId}_even_reverse.pdf");
             using (var evenDoc = new PdfDocument())
             {
-                for (int p = normalizedTotal; p >= 2; p -= 2)
+                for (int s = totalSheets - 1; s >= 0; s--)
                 {
-                    evenDoc.AddPage(normDoc.Pages[p - 1]);
+                    int baseIdx = s * multiplier + pagesPerSheet;
+                    for (int k = 0; k < pagesPerSheet; k++)
+                    {
+                        evenDoc.AddPage(normDoc.Pages[baseIdx + k]);
+                    }
                 }
                 evenDoc.Save(evenReversePdfPath);
             }
@@ -110,16 +151,18 @@ namespace SmartXeroxHub.Agent.Core
                 OriginalFilePath = inputPdfPath,
                 OddPagesFilePath = oddPdfPath,
                 ReverseEvenPagesFilePath = evenReversePdfPath,
-                OriginalPageCount = normDoc.PageCount - (blankAppended ? 1 : 0),
-                NormalizedPageCount = normalizedTotal,
-                HasBlankPageInserted = blankAppended,
+                OriginalPageCount = origCount,
+                NormalizedPageCount = totalSlots,
+                HasBlankPageInserted = (totalSlots > origCount),
                 TotalCopies = copies,
                 CurrentCopyIndex = 1,
                 Stage = DuplexStage.AWAITING_APPROVAL,
-                TargetPrinterName = printerName
+                TargetPrinterName = printerName,
+                PagesPerSheet = pagesPerSheet,
+                PrintOptions = options
             };
 
-            LoggingManager.Info($"[DuplexProcessor] Job {orderNumber} prepared: {oddPdfPath} and {evenReversePdfPath}");
+            LoggingManager.Info($"[DuplexProcessor] Duplex job {orderNumber} ready: {totalSheets} physical sheets ({origCount} original pages, {totalSlots - origCount} blanks added)");
             return job;
         }
 
@@ -131,8 +174,8 @@ namespace SmartXeroxHub.Agent.Core
             LoggingManager.Info($"[DuplexProcessor] Printing First Side for {job.OrderNumber} (Copy {job.CurrentCopyIndex}/{job.TotalCopies})");
             job.Stage = DuplexStage.PRINTING_FIRST_SIDE;
 
-            // In actual printing on Windows, render pages via System.Drawing / PrintDocument
-            var success = PhotoProcessor.PrintPdfDocument(job.OddPagesFilePath, job.TargetPrinterName, $"{job.OrderNumber}_Side1_Copy{job.CurrentCopyIndex}");
+            var opt = job.PrintOptions ?? new PrintJobOptions { PagesPerSheet = job.PagesPerSheet };
+            var success = PhotoProcessor.PrintPdfDocument(job.OddPagesFilePath, job.TargetPrinterName, $"{job.OrderNumber}_Side1_Copy{job.CurrentCopyIndex}", opt);
 
             if (success)
             {
@@ -158,6 +201,8 @@ namespace SmartXeroxHub.Agent.Core
         }
 
         /// <summary>
+        /// Executes Second-Side printing with reversed even pages.
+        /// <summary>
         /// Executes Second-Side printing with the reverse even pages file.
         /// </summary>
         public bool PrintSecondSide(DuplexJob job)
@@ -171,7 +216,8 @@ namespace SmartXeroxHub.Agent.Core
             LoggingManager.Info($"[DuplexProcessor] Printing Second Side for {job.OrderNumber} (Copy {job.CurrentCopyIndex}/{job.TotalCopies})");
             job.Stage = DuplexStage.PRINTING_SECOND_SIDE;
 
-            var success = PhotoProcessor.PrintPdfDocument(job.ReverseEvenPagesFilePath, job.TargetPrinterName, $"{job.OrderNumber}_Side2_Copy{job.CurrentCopyIndex}");
+            var opt = job.PrintOptions ?? new PrintJobOptions { PagesPerSheet = job.PagesPerSheet };
+            var success = PhotoProcessor.PrintPdfDocument(job.ReverseEvenPagesFilePath, job.TargetPrinterName, $"{job.OrderNumber}_Side2_Copy{job.CurrentCopyIndex}", opt);
 
             if (success)
             {

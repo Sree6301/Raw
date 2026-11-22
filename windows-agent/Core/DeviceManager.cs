@@ -77,32 +77,66 @@ namespace SmartXeroxHub.Agent.Core
             ResolveActivePrinter();
         }
 
+        private readonly System.Timers.Timer _monitorTimer = new(5000);
+
+        public DeviceManager()
+        {
+            _monitorTimer.Elapsed += (s, e) =>
+            {
+                try
+                {
+                    EnumeratePrinters();
+                }
+                catch { }
+            };
+            _monitorTimer.AutoReset = true;
+            _monitorTimer.Start();
+        }
+
         private void ResolveActivePrinter()
         {
-            // 1. Look for HP Smart Tank on USB
+            // 1. First Preference: HP Smart Tank connected over USB
             var hpUsb = DiscoveredPrinters.Find(p => p.IsHpSmartTank && p.ConnectionType == "USB");
+            if (hpUsb != null && hpUsb.IsOnline)
+            {
+                if (ActivePrinter?.Name != hpUsb.Name || ActivePrinter?.PortName != hpUsb.PortName)
+                {
+                    SetActivePrinter(hpUsb);
+                    LoggingManager.Info($"[DeviceManager] Selected primary USB printer: {hpUsb.Name} on {hpUsb.PortName} (ONLINE)");
+                }
+                return;
+            }
+
+            // 2. Second Preference: HP Smart Tank connected over Wi-Fi / WSD
+            var hpWifi = DiscoveredPrinters.Find(p => p.IsHpSmartTank && p.ConnectionType == "WIFI");
+            if (hpWifi != null && hpWifi.IsOnline)
+            {
+                if (ActivePrinter?.Name != hpWifi.Name || ActivePrinter?.PortName != hpWifi.PortName)
+                {
+                    SetActivePrinter(hpWifi);
+                    LoggingManager.Info($"[DeviceManager] USB offline or disconnected. Switched to secondary Wi-Fi printer: {hpWifi.Name} on {hpWifi.PortName} (ONLINE)");
+                }
+                return;
+            }
+
+            // 3. If neither reports strictly online, still favor USB then Wi-Fi
             if (hpUsb != null)
             {
-                SetActivePrinter(hpUsb);
-                LoggingManager.Info($"Selected default USB printer: {hpUsb.Name} on {hpUsb.PortName}");
+                if (ActivePrinter?.Name != hpUsb.Name) SetActivePrinter(hpUsb);
                 return;
             }
-
-            // 2. Look for HP Smart Tank on Wi-Fi/WSD
-            var hpWifi = DiscoveredPrinters.Find(p => p.IsHpSmartTank && p.ConnectionType == "WIFI");
             if (hpWifi != null)
             {
-                SetActivePrinter(hpWifi);
-                LoggingManager.Info($"Selected Wi-Fi printer: {hpWifi.Name} on {hpWifi.PortName}");
+                if (ActivePrinter?.Name != hpWifi.Name) SetActivePrinter(hpWifi);
                 return;
             }
 
-            // 3. Fallback: Any default printer or first available
+            // 4. Fallback: Any default printer
             var fallback = DiscoveredPrinters.Find(p => p.IsDefault) ?? DiscoveredPrinters.Find(p => p.IsOnline);
-            if (fallback != null)
+            if (fallback != null && ActivePrinter?.Name != fallback.Name)
             {
                 SetActivePrinter(fallback);
-                LoggingManager.Warn($"HP Smart Tank not specifically matched. Fallback active printer: {fallback.Name}");
+                LoggingManager.Warn($"[DeviceManager] HP Smart Tank not specifically matched. Fallback active printer: {fallback.Name}");
             }
         }
 
