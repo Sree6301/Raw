@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Net.Http;
 using System.Net.WebSockets;
@@ -129,7 +131,7 @@ namespace SmartXeroxHub.Agent.Core
             _httpClient = new HttpClient
             {
                 BaseAddress = new Uri(_backendBaseUrl),
-                Timeout = TimeSpan.FromSeconds(10)
+                Timeout = TimeSpan.FromMinutes(5)
             };
         }
 
@@ -596,6 +598,8 @@ namespace SmartXeroxHub.Agent.Core
 
         public async Task<bool> AcquireAndUploadScanAsync(string orderId, string orderNumber, string format = "PDF", int resolution = 300, string colorMode = "COLOR")
         {
+            string? scannedImagePath = null;
+            string? tempOptimized = null;
             try
             {
                 LoggingManager.Info($"[BackendSync] Triggering physical HP flatbed scan for order {orderNumber} ({format}, {resolution} DPI, {colorMode})");
@@ -608,22 +612,54 @@ namespace SmartXeroxHub.Agent.Core
                 };
 
                 // Real physical WIA scan without watermarks
-                var scannedImagePath = _scanManager.AcquireFlatbedScan(scanParams, 1, orderNumber);
+                scannedImagePath = _scanManager.AcquireFlatbedScan(scanParams, 1, orderNumber);
                 if (string.IsNullOrEmpty(scannedImagePath) || !File.Exists(scannedImagePath))
                 {
                     LoggingManager.Error("[BackendSync] Flatbed scan acquisition produced no file");
                     return false;
                 }
 
-                LoggingManager.Info($"[BackendSync] Physical scan captured to: {scannedImagePath}");
+                var origLength = new FileInfo(scannedImagePath).Length;
+                LoggingManager.Info($"[BackendSync] Physical scan captured to: {scannedImagePath} ({origLength / 1024} KB)");
+
+                // Optimize image transmission for cloud without modifying the pristine original
+                string uploadPath = scannedImagePath;
+                try
+                {
+                    if (origLength > 2 * 1024 * 1024)
+                    {
+                        tempOptimized = Path.Combine(Path.GetTempPath(), $"upload_{Path.GetFileName(scannedImagePath)}");
+                        using (var bmp = new Bitmap(scannedImagePath))
+                        {
+                            var jgpEncoder = GetImageEncoder(ImageFormat.Jpeg);
+                            if (jgpEncoder != null)
+                            {
+                                var encParams = new EncoderParameters(1);
+                                encParams.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, 88L);
+                                bmp.Save(tempOptimized, jgpEncoder, encParams);
+                            }
+                        }
+                        if (File.Exists(tempOptimized) && new FileInfo(tempOptimized).Length > 0)
+                        {
+                            uploadPath = tempOptimized;
+                            LoggingManager.Info($"[BackendSync] Scan optimized for cloud transmission: {new FileInfo(uploadPath).Length / 1024} KB (Original: {origLength / 1024} KB)");
+                        }
+                    }
+                }
+                catch (Exception optEx)
+                {
+                    LoggingManager.Warn($"[BackendSync] Optimization skipped, uploading raw scan: {optEx.Message}");
+                    uploadPath = scannedImagePath;
+                }
 
                 // Upload scan page image to backend
                 using var form = new MultipartFormDataContent();
-                var fileBytes = await File.ReadAllBytesAsync(scannedImagePath);
+                var fileBytes = await File.ReadAllBytesAsync(uploadPath);
                 var byteContent = new ByteArrayContent(fileBytes);
                 byteContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/jpeg");
                 form.Add(byteContent, "pageImage", Path.GetFileName(scannedImagePath));
 
+                LoggingManager.Info($"[BackendSync] Uploading scan to cloud ({fileBytes.Length / 1024} KB)...");
                 var uploadRes = await _httpClient.PostAsync($"/api/admin/scan/{orderId}/page", form);
                 if (!uploadRes.IsSuccessStatusCode)
                 {
@@ -631,6 +667,7 @@ namespace SmartXeroxHub.Agent.Core
                 }
 
                 // Finish scan order so final download is available for user
+                LoggingManager.Info($"[BackendSync] Finalizing scan order {orderId} on backend...");
                 var finishRes = await _httpClient.PostAsync($"/api/admin/scan/{orderId}/finish", new StringContent("{}", Encoding.UTF8, "application/json"));
                 LoggingManager.Info($"[BackendSync] Scan order {orderNumber} finished successfully: DOWNLOAD_AVAILABLE");
 
@@ -642,6 +679,26 @@ namespace SmartXeroxHub.Agent.Core
                 LoggingManager.Error($"[BackendSync] Failed to acquire and upload scan for {orderNumber}", ex);
                 return false;
             }
+            finally
+            {
+                if (!string.IsNullOrEmpty(tempOptimized) && File.Exists(tempOptimized))
+                {
+                    try { File.Delete(tempOptimized); } catch { }
+                }
+            }
+        }
+
+        private static ImageCodecInfo? GetImageEncoder(ImageFormat format)
+        {
+            var codecs = ImageCodecInfo.GetImageEncoders();
+            foreach (var codec in codecs)
+            {
+                if (codec.FormatID == format.Guid)
+                {
+                    return codec;
+                }
+            }
+            return null;
         }
 
         public async Task<ShopPricingDto?> FetchPricingAsync()

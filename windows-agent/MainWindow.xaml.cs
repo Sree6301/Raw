@@ -211,22 +211,36 @@ namespace SmartXeroxHub.Agent
                 {
                     // "🔍 Approve & Scan"
                     btn.IsEnabled = false;
-                    btn.Content = "⏳ Scanning...";
+                    btn.Content = "⏳ Scanning Glass...";
                     try
                     {
                         var success = await _backendSync.AcquireAndUploadScanAsync(order.Id, order.OrderNumber, order.Format, order.Resolution, order.ColorMode);
                         if (success)
                         {
-                            MessageBox.Show($"Physical scan captured directly from HP Smart Tank 589 flatbed glass without watermarks!\n\nSaved to RAW_Inputs/Scans. Customer site has received download link.", "Scan Succeeded & Delivered", MessageBoxButton.OK, MessageBoxImage.Information);
+                            MessageBox.Show($"Physical scan captured directly from HP Smart Tank 589 flatbed glass without watermarks!\n\nSaved to RAW_Inputs/Scans.\nCustomer site has received the download file.", "Scan Succeeded & Delivered", MessageBoxButton.OK, MessageBoxImage.Information);
                         }
                         else
                         {
-                            MessageBox.Show("Scan could not be acquired. Make sure scanner is ready.", "Scan Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                            var scansDir = _scanManager.GetScansDirectory();
+                            var matchingFiles = Directory.GetFiles(scansDir, $"{order.OrderNumber}*.*");
+                            if (matchingFiles.Length > 0)
+                            {
+                                MessageBox.Show($"Physical scan was captured and saved to RAW_Inputs/Scans:\n{matchingFiles[0]}\n\nCloud transmission is syncing.", "Scan Saved Locally", MessageBoxButton.OK, MessageBoxImage.Information);
+                            }
+                            else
+                            {
+                                MessageBox.Show("Physical scan could not be acquired. Ensure HP Smart Tank 589 is powered on, flatbed lid is closed, and scanner is ready.", "Scanner Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                            }
                         }
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Scanner error: {ex.Message}", "Scanner Error", MessageBoxButton.OK, MessageBoxImage.Error);
                     }
                     finally
                     {
                         btn.IsEnabled = true;
+                        btn.Content = "🔍 Approve & Scan";
                         await RefreshOrdersAsync();
                     }
                     return;

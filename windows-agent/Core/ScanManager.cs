@@ -77,17 +77,34 @@ namespace SmartXeroxHub.Agent.Core
 
                     dynamic? selectedDevice = null;
 
-                    // Search for active HP Smart Tank scanner
+                    // Collect and prioritize USB scanners first over Wi-Fi
+                    var candidateList = new List<dynamic>();
                     for (int i = 1; i <= count; i++)
                     {
-                        dynamic info = devMgr.DeviceInfos.Item(i);
+                        candidateList.Add(devMgr.DeviceInfos.Item(i));
+                    }
+
+                    candidateList.Sort((a, b) =>
+                    {
+                        string nameA = ""; try { nameA = a.Properties.Item("Name").Value?.ToString() ?? ""; } catch { }
+                        string nameB = ""; try { nameB = b.Properties.Item("Name").Value?.ToString() ?? ""; } catch { }
+                        string idA = a.DeviceID?.ToString() ?? "";
+                        string idB = b.DeviceID?.ToString() ?? "";
+                        bool aIsUsb = nameA.Contains("USB", StringComparison.OrdinalIgnoreCase) || idA.Contains("0000");
+                        bool bIsUsb = nameB.Contains("USB", StringComparison.OrdinalIgnoreCase) || idB.Contains("0000");
+                        if (aIsUsb && !bIsUsb) return -1;
+                        if (!aIsUsb && bIsUsb) return 1;
+                        return 0;
+                    });
+
+                    foreach (var info in candidateList)
+                    {
                         string devId = info.DeviceID?.ToString() ?? "";
                         string devName = "";
                         try { devName = info.Properties.Item("Name").Value?.ToString() ?? ""; } catch { }
 
-                        LoggingManager.Info($"[ScanManager] Checking WIA Device {i}: {devName} ({devId})");
+                        LoggingManager.Info($"[ScanManager] Evaluating WIA Scanner: {devName} ({devId})");
 
-                        // Try to connect to online scanner
                         try
                         {
                             dynamic conn = info.Connect();
