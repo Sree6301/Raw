@@ -79,7 +79,32 @@ namespace SmartXeroxHub.Agent.Core
             _duplexProcessor = duplexProcessor;
             _scanManager = scanManager;
             _recoveryManager = recoveryManager;
-            _backendBaseUrl = backendBaseUrl.TrimEnd('/');
+            // Allow overriding via environment variable or config.json
+            var resolvedUrl = backendBaseUrl;
+            var envUrl = Environment.GetEnvironmentVariable("SMART_XEROX_BACKEND_URL");
+            if (!string.IsNullOrWhiteSpace(envUrl))
+            {
+                resolvedUrl = envUrl.Trim();
+            }
+            else
+            {
+                var cfgFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.json");
+                if (File.Exists(cfgFile))
+                {
+                    try
+                    {
+                        var json = File.ReadAllText(cfgFile);
+                        using var doc = JsonDocument.Parse(json);
+                        if (doc.RootElement.TryGetProperty("backendUrl", out var prop) && !string.IsNullOrWhiteSpace(prop.GetString()))
+                        {
+                            resolvedUrl = prop.GetString()!.Trim();
+                        }
+                    }
+                    catch { }
+                }
+            }
+            _backendBaseUrl = resolvedUrl.TrimEnd('/');
+            LoggingManager.Info($"[BackendSync] Target backend URL resolved to: {_backendBaseUrl}");
 
             // Resolve RAW_Inputs/User_Uploads
             if (Directory.Exists(@"g:\Smart Xerox Hub\RAW_Inputs\User_Uploads"))
