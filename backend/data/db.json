@@ -1,0 +1,350 @@
+{
+  "guestSessions": [
+    [
+      "11411fb7d0e67c1a57799a64d322ff56fe820dedbc6be1e5",
+      {
+        "id": "7c53892a-3a96-4143-9c4a-7aefc4eee501",
+        "sessionToken": "11411fb7d0e67c1a57799a64d322ff56fe820dedbc6be1e5",
+        "customerName": "Walk-in Customer",
+        "customerPhone": "",
+        "createdAt": "2026-11-22T08:30:17.035Z",
+        "expiresAt": "2026-11-23T08:30:17.035Z"
+      }
+    ],
+    [
+      "92fc71abc422638111807cca782aa7778e3cf09b534f2d36",
+      {
+        "id": "5964bf98-15ca-432f-aafe-e27399fcc270",
+        "sessionToken": "92fc71abc422638111807cca782aa7778e3cf09b534f2d36",
+        "customerName": "Walk-in Customer",
+        "customerPhone": "",
+        "createdAt": "2026-11-22T08:30:17.038Z",
+        "expiresAt": "2026-11-23T08:30:17.038Z"
+      }
+    ],
+    [
+      "local-guest",
+      {
+        "id": "6b02035c-d2c2-421c-a991-3ff7f861fe56",
+        "sessionToken": "local-guest",
+        "customerName": "Desk Customer",
+        "createdAt": "2026-11-22T09:22:56.981Z",
+        "expiresAt": "2026-11-23T09:22:56.981Z"
+      }
+    ]
+  ],
+  "printOrders": [
+    [
+      "acff7a01-4ce9-4149-a34e-45e65a90d93b",
+      {
+        "id": "acff7a01-4ce9-4149-a34e-45e65a90d93b",
+        "guestSessionId": "5964bf98-15ca-432f-aafe-e27399fcc270",
+        "orderNumber": "DOC-20261122-635",
+        "serviceType": "DOCUMENT",
+        "status": "COMPLETED",
+        "originalFileName": "ENTP venture certificate.pdf",
+        "fileUrl": "/uploads/documents/1795336374404-aea223783c17.pdf",
+        "fileSizeBytes": 5733106,
+        "totalPages": 1,
+        "copies": 1,
+        "pageRange": "ALL",
+        "paperSize": "A4",
+        "paperType": "NORMAL_A4",
+        "colorMode": "BW",
+        "sides": "SINGLE",
+        "duplexStage": "NOT_APPLICABLE",
+        "calculatedPrice": 2,
+        "paymentStatus": "UNPAID",
+        "createdAt": "2026-11-22T08:32:54.588Z",
+        "updatedAt": "2026-11-22T09:06:07.203Z"
+      }
+    ],
+    [
+      "dc2f0428-af5c-4c4b-b7ae-bd26192780da",
+      {
+        "id": "dc2f0428-af5c-4c4b-b7ae-bd26192780da",
+        "guestSessionId": "5964bf98-15ca-432f-aafe-e27399fcc270",
+        "orderNumber": "DOC-20261122-651",
+        "serviceType": "DOCUMENT",
+        "status": "COMPLETED",
+        "originalFileName": "ENTP venture certificate.pdf",
+        "fileUrl": "/uploads/documents/1795339785023_ENTP_venture_certificate.pdf",
+        "fileSizeBytes": 5733106,
+        "totalPages": 1,
+        "copies": 1,
+        "pageRange": "ALL",
+        "paperSize": "A4",
+        "paperType": "NORMAL_A4",
+        "colorMode": "BW",
+        "sides": "SINGLE",
+        "duplexStage": "NOT_APPLICABLE",
+        "calculatedPrice": 2,
+        "paymentStatus": "UNPAID",
+        "createdAt": "2026-11-22T09:29:45.076Z",
+        "updatedAt": "2026-11-22T09:31:12.414Z"
+      }
+    ],
+    [
+      "02c58b50-b881-4aa6-9c26-affa4466b9a8",
+      {
+        "id": "02c58b50-b881-4aa6-9c26-affa4466b9a8",
+        "guestSessionId": "5964bf98-15ca-432f-aafe-e27399fcc270",
+        "orderNumber": "DOC-20261122-902",
+        "serviceType": "DOCUMENT",
+        "status": "WAITING_FOR_PHYSICAL_CONFIRMATION",
+        "originalFileName": "Cloud Computing UNIT-4 Notes.pdf",
+        "fileUrl": "/uploads/documents/1795340426684_Cloud_Computing_UNIT-4_Notes.pdf",
+        "fileSizeBytes": 485866,
+        "totalPages": 13,
+        "copies": 1,
+        "pageRange": "ALL",
+        "paperSize": "A4",
+        "paperType": "NORMAL_A4",
+        "colorMode": "BW",
+        "sides": "MANUAL_DUPLEX",
+        "duplexStage": "AWAITING_PAPER_REVERSAL",
+        "calculatedPrice": 19.5,
+        "paymentStatus": "UNPAID",
+        "createdAt": "2026-11-22T09:40:26.848Z",
+        "updatedAt": "2026-11-22T09:41:32.728Z"
+      }
+    ]
+  ],
+  "duplexJobs": [
+    [
+      "02c58b50-b881-4aa6-9c26-affa4466b9a8",
+      {
+        "orderId": "02c58b50-b881-4aa6-9c26-affa4466b9a8",
+        "originalPageCount": 13,
+        "normalizedPageCount": 14,
+        "hasBlankPageInserted": true,
+        "oddPagesFileUrl": "/uploads/duplex/duplex_02c58b50-b881-4aa6-9c26-affa4466b9a8_odd_pages.pdf",
+        "evenPagesReverseFileUrl": "/uploads/duplex/duplex_02c58b50-b881-4aa6-9c26-affa4466b9a8_even_reverse.pdf",
+        "currentCopyIndex": 1,
+        "totalCopies": 1,
+        "stage": "AWAITING_PAPER_REVERSAL",
+        "reversalInstructions": "Flip paper stack horizontally and re-insert into top tray."
+      }
+    ]
+  ],
+  "photoOrders": [],
+  "scanOrders": [
+    [
+      "39a6479b-a16c-4608-b7b5-89014155db36",
+      {
+        "id": "39a6479b-a16c-4608-b7b5-89014155db36",
+        "guestSessionId": "5964bf98-15ca-432f-aafe-e27399fcc270",
+        "orderNumber": "SCN-20261122-831",
+        "status": "COMPLETED",
+        "format": "PDF",
+        "resolution": 300,
+        "colorMode": "COLOR",
+        "requestedPageCount": 1,
+        "scannedPages": [
+          {
+            "pageIndex": 1,
+            "previewUrl": "/uploads/scans/scan-1795336265111-05d3acc7e252.jpg",
+            "rotationDegrees": 0
+          },
+          {
+            "pageIndex": 2,
+            "previewUrl": "/uploads/scans/scan-1795336282848-4b7b85c6a721.jpg",
+            "rotationDegrees": 0
+          },
+          {
+            "pageIndex": 3,
+            "previewUrl": "/uploads/scans/scan-1795336284572-40f4556ee6ea.jpg",
+            "rotationDegrees": 0
+          },
+          {
+            "pageIndex": 4,
+            "previewUrl": "/uploads/scans/scan-1795336287010-e476fd18fb7f.jpg",
+            "rotationDegrees": 0
+          },
+          {
+            "pageIndex": 5,
+            "previewUrl": "/uploads/scans/scan-1795336287863-5a6f744dc11a.jpg",
+            "rotationDegrees": 0
+          },
+          {
+            "pageIndex": 6,
+            "previewUrl": "/uploads/scans/scan-1795336288379-a8e3ba15a8ca.jpg",
+            "rotationDegrees": 0
+          },
+          {
+            "pageIndex": 7,
+            "previewUrl": "/uploads/scans/scan-1795336301567-9b9769343e02.jpg",
+            "rotationDegrees": 0
+          }
+        ],
+        "calculatedPrice": 10,
+        "paymentStatus": "UNPAID",
+        "createdAt": "2026-11-22T08:30:56.163Z",
+        "finalFileName": "ScannedDoc_SCN-20261122-831.pdf",
+        "finalFileUrl": "/uploads/scans/ScannedDoc_SCN-20261122-831.pdf"
+      }
+    ],
+    [
+      "6f1999e6-42dd-49b3-9cee-6bd008af5c9a",
+      {
+        "id": "6f1999e6-42dd-49b3-9cee-6bd008af5c9a",
+        "guestSessionId": "5964bf98-15ca-432f-aafe-e27399fcc270",
+        "orderNumber": "SCN-20261122-485",
+        "status": "SUBMITTED",
+        "format": "PDF",
+        "resolution": 300,
+        "colorMode": "COLOR",
+        "requestedPageCount": 1,
+        "scannedPages": [],
+        "calculatedPrice": 10,
+        "paymentStatus": "UNPAID",
+        "createdAt": "2026-11-22T09:05:14.163Z"
+      }
+    ],
+    [
+      "31f74981-5d6d-4a2f-a695-47da1836c74f",
+      {
+        "id": "31f74981-5d6d-4a2f-a695-47da1836c74f",
+        "guestSessionId": "6b02035c-d2c2-421c-a991-3ff7f861fe56",
+        "orderNumber": "SCN-20261122-799",
+        "status": "SUBMITTED",
+        "format": "PDF",
+        "resolution": 300,
+        "colorMode": "COLOR",
+        "requestedPageCount": 1,
+        "scannedPages": [],
+        "calculatedPrice": 10,
+        "paymentStatus": "UNPAID",
+        "createdAt": "2026-11-22T09:22:56.981Z"
+      }
+    ],
+    [
+      "36fda6ba-afb3-40dd-8f86-d2f6ac65dba1",
+      {
+        "id": "36fda6ba-afb3-40dd-8f86-d2f6ac65dba1",
+        "guestSessionId": "5964bf98-15ca-432f-aafe-e27399fcc270",
+        "orderNumber": "SCN-20261122-485",
+        "status": "SUBMITTED",
+        "format": "JPEG",
+        "resolution": 300,
+        "colorMode": "COLOR",
+        "requestedPageCount": 1,
+        "scannedPages": [],
+        "calculatedPrice": 10,
+        "paymentStatus": "UNPAID",
+        "createdAt": "2026-11-22T09:28:30.499Z"
+      }
+    ],
+    [
+      "5a505a0a-e2de-4c97-867f-1b640cface41",
+      {
+        "id": "5a505a0a-e2de-4c97-867f-1b640cface41",
+        "guestSessionId": "5964bf98-15ca-432f-aafe-e27399fcc270",
+        "orderNumber": "SCN-20261122-168",
+        "status": "SUBMITTED",
+        "format": "PDF",
+        "resolution": 300,
+        "colorMode": "COLOR",
+        "requestedPageCount": 1,
+        "scannedPages": [],
+        "calculatedPrice": 10,
+        "paymentStatus": "UNPAID",
+        "createdAt": "2026-11-22T09:34:00.974Z"
+      }
+    ]
+  ],
+  "printerDevices": [
+    [
+      "hp-smart-tank-usb",
+      {
+        "id": "hp-smart-tank-usb",
+        "name": "HP Smart Tank 580-590 series (USB)",
+        "model": "HP Smart Tank 589",
+        "connectionType": "USB",
+        "portOrAddress": "USB001",
+        "driverName": "Microsoft IPP Class Driver",
+        "status": "ONLINE",
+        "isDefault": true,
+        "activeQueueName": "HP Smart Tank 580-590 series",
+        "lastSeenAt": "2026-11-22T10:04:40.225Z",
+        "supportsColor": true,
+        "supportsA4": true,
+        "supports4x6": true
+      }
+    ],
+    [
+      "hp-smart-tank-wifi",
+      {
+        "id": "hp-smart-tank-wifi",
+        "name": "HP Smart Tank 580-590 series (Wi-Fi)",
+        "model": "HP Smart Tank 589",
+        "connectionType": "WIFI",
+        "portOrAddress": "WSD-2101c964-4c10-4c6b-a4b4-fbb5c652032a",
+        "driverName": "Microsoft IPP Class Driver",
+        "status": "ONLINE",
+        "isDefault": false,
+        "activeQueueName": "HP Smart Tank 580-590 series [5C4AE8]",
+        "lastSeenAt": "2026-11-22T10:04:40.225Z",
+        "supportsColor": true,
+        "supportsA4": true,
+        "supports4x6": true
+      }
+    ]
+  ],
+  "paperProfiles": [
+    [
+      "NORMAL_A4",
+      {
+        "id": "p-normal-a4",
+        "paperType": "NORMAL_A4",
+        "displayName": "Normal Plain Paper A4 (75-80 GSM)",
+        "sheetWidthMm": 210,
+        "sheetHeightMm": 297,
+        "isCurrentlyLoaded": true,
+        "estimatedSheetsRemaining": 450,
+        "minThresholdAlert": 50,
+        "updatedAt": "2026-11-22T08:29:39.753Z"
+      }
+    ],
+    [
+      "PHOTO_A4",
+      {
+        "id": "p-photo-a4",
+        "paperType": "PHOTO_A4",
+        "displayName": "Glossy Photo Paper A4 (180-200 GSM)",
+        "sheetWidthMm": 210,
+        "sheetHeightMm": 297,
+        "isCurrentlyLoaded": false,
+        "estimatedSheetsRemaining": 80,
+        "minThresholdAlert": 15,
+        "updatedAt": "2026-11-22T08:29:39.753Z"
+      }
+    ],
+    [
+      "PHOTO_4X6",
+      {
+        "id": "p-photo-4x6",
+        "paperType": "PHOTO_4X6",
+        "displayName": "Glossy Photo Paper 4x6 inch (101.6 x 152.4 mm)",
+        "sheetWidthMm": 101.6,
+        "sheetHeightMm": 152.4,
+        "isCurrentlyLoaded": false,
+        "estimatedSheetsRemaining": 120,
+        "minThresholdAlert": 20,
+        "updatedAt": "2026-11-22T08:29:39.753Z"
+      }
+    ]
+  ],
+  "pricingConfig": {
+    "a4BwSingleSideRate": 2,
+    "a4BwDoubleSideRate": 3,
+    "a4ColorSingleSideRate": 10,
+    "a4ColorDoubleSideRate": 18,
+    "photoA4Rate": 40,
+    "photo4x6Rate": 20,
+    "scanPerPageRate": 10,
+    "shopUpiId": "smartxerox@upi",
+    "shopName": "SMART XEROX HUB"
+  },
+  "auditLogs": []
+}

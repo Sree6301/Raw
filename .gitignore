@@ -1,0 +1,43 @@
+# Node & Dependencies
+node_modules/
+.pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Production Web Builds
+dist/
+build/
+.output/
+
+# .NET & C# Build Artifacts
+bin/
+obj/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+*.pdb
+
+# Local Storage, Scans & Inputs
+RAW_Inputs/
+backend/uploads/
+uploads/
+data/*.json
+*.log
+logs/
+temp/
+
+# Inno Setup Releases (large binaries > 100MB should not be tracked in git)
+installer/releases/
+*.tmp
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini

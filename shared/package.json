@@ -1,0 +1,14 @@
+{
+  "name": "@smart-xerox-hub/shared",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/types.js",
+  "types": "dist/types.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}
