@@ -12,6 +12,8 @@
     "build": "npm run build --workspace=@smart-xerox-hub/customer-web",
     "build:customer": "npm run build --workspace=@smart-xerox-hub/customer-web",
     "build:admin": "npm run build --workspace=@smart-xerox-hub/admin-dashboard",
-    "build:all": "npm run build --workspace=@smart-xerox-hub/customer-web && npm run build --workspace=@smart-xerox-hub/admin-dashboard"
+    "build:backend": "npm run build --workspace=@smart-xerox-hub/backend",
+    "start:backend": "node backend/dist/server.js",
+    "build:all": "npm run build --workspace=@smart-xerox-hub/customer-web && npm run build --workspace=@smart-xerox-hub/admin-dashboard && npm run build --workspace=@smart-xerox-hub/backend"
   }
 }
