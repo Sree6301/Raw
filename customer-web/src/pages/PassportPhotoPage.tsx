@@ -181,10 +181,10 @@ export function PassportPhotoPage() {
 
   // 4. Save Single Cropped Photo & Generate 8-Up Sheet
   const handleSaveCropAndPreview = () => {
-    if (!cropCanvasRef.current || !imageObjRef.current) return;
+    if (!imageObjRef.current || !cropCanvasRef.current) return;
 
-    const cropCanvas = cropCanvasRef.current;
-    // High-resolution crop (700 x 900 px - exact 35:45 ratio)
+    const img = imageObjRef.current;
+    // High-resolution studio crop (700 x 900 px - exact 35:45 passport ratio)
     const singleWidth = 700;
     const singleHeight = Math.round(singleWidth / PASSPORT_ASPECT_RATIO); // 900 px
 
@@ -194,8 +194,33 @@ export function PassportPhotoPage() {
     const offCtx = offscreen.getContext('2d');
     if (!offCtx) return;
 
-    offCtx.drawImage(cropCanvas, 0, 0, singleWidth, singleHeight);
-    const singleUrl = offscreen.toDataURL('image/jpeg', 0.95);
+    // Fill white background first
+    offCtx.fillStyle = '#FFFFFF';
+    offCtx.fillRect(0, 0, singleWidth, singleHeight);
+
+    // Apply strict square clipping to prevent any edge artifacts or rounded corners
+    offCtx.save();
+    offCtx.beginPath();
+    offCtx.rect(0, 0, singleWidth, singleHeight);
+    offCtx.clip();
+
+    // Map screen preview canvas dimensions (280 x 360) to high-resolution canvas (700 x 900)
+    const scaleFactor = singleWidth / 280;
+    offCtx.translate(singleWidth / 2 + pan.x * scaleFactor, singleHeight / 2 + pan.y * scaleFactor);
+    offCtx.rotate((rotation * Math.PI) / 180);
+    offCtx.scale(zoom, zoom);
+
+    const imgRatio = img.width / img.height;
+    let drawW = singleWidth;
+    let drawH = singleWidth / imgRatio;
+    if (drawH < singleHeight) {
+      drawH = singleHeight;
+      drawW = singleHeight * imgRatio;
+    }
+    offCtx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+    offCtx.restore();
+
+    const singleUrl = offscreen.toDataURL('image/jpeg', 0.98);
     setCroppedDataUrl(singleUrl);
 
     // Generate 8-up on 4x6 HP Photo Paper (1800 x 1200 px landscape at 300 DPI)
@@ -237,17 +262,24 @@ export function PassportPhotoPage() {
         const x = leftMargin + c * (photoW + colGap);
         const y = topMargin + r * (photoH + rowGap);
 
-        // Draw passport photo
-        ctx.drawImage(singlePhotoCanvas, x, y, photoW, photoH);
+        // Draw passport photo strictly clipped to square rectangle (prevent any rounded corners)
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, y, photoW, photoH);
+        ctx.clip();
+        ctx.drawImage(singlePhotoCanvas, 0, 0, singlePhotoCanvas.width, singlePhotoCanvas.height, x, y, photoW, photoH);
+        ctx.restore();
 
-        // Draw fine, crisp photo cut border around each individual photo (matching Reference Size.png)
+        // Draw fine, crisp photo cut border around each individual photo with sharp miter corners (matching Reference Size.png)
         ctx.lineWidth = 2;
+        ctx.lineJoin = 'miter';
+        ctx.miterLimit = 10;
         ctx.strokeStyle = '#5ba6d1'; // Clean fine cyan border matching Reference Size.png
         ctx.strokeRect(x, y, photoW, photoH);
       }
     }
 
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.98);
     setSheetDataUrl(dataUrl);
 
     canvas.toBlob((blob) => {
@@ -418,7 +450,7 @@ export function PassportPhotoPage() {
                 width: 280,
                 height: 360,
                 mx: 'auto',
-                borderRadius: 2,
+                borderRadius: 0,
                 overflow: 'hidden',
                 bgcolor: '#0f172a',
                 cursor: isDragging ? 'grabbing' : 'grab',

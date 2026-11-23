@@ -60,12 +60,45 @@ namespace SmartXeroxHub.Agent.Core
                 printDoc.DocumentName = docTitle;
 
                 var is4x6 = paperType == "PHOTO_4X6";
-                var paperSize = new PaperSize(
-                    is4x6 ? "4x6" : "A4",
-                    is4x6 ? 400 : 827,
-                    is4x6 ? 600 : 1169
-                );
-                printDoc.DefaultPageSettings.PaperSize = paperSize;
+                // Select printer's native paper size from driver if available
+                bool matchedSize = false;
+                if (is4x6)
+                {
+                    foreach (PaperSize ps in printDoc.PrinterSettings.PaperSizes)
+                    {
+                        if (ps.PaperName.Contains("4x6", StringComparison.OrdinalIgnoreCase) ||
+                            ps.PaperName.Contains("10x15", StringComparison.OrdinalIgnoreCase) ||
+                            ps.PaperName.Contains("4 x 6", StringComparison.OrdinalIgnoreCase))
+                        {
+                            printDoc.DefaultPageSettings.PaperSize = ps;
+                            matchedSize = true;
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    foreach (PaperSize ps in printDoc.PrinterSettings.PaperSizes)
+                    {
+                        if (ps.PaperName.Contains("A4", StringComparison.OrdinalIgnoreCase))
+                        {
+                            printDoc.DefaultPageSettings.PaperSize = ps;
+                            matchedSize = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!matchedSize)
+                {
+                    var paperSize = new PaperSize(
+                        is4x6 ? "4x6" : "A4",
+                        is4x6 ? 400 : 827,
+                        is4x6 ? 600 : 1169
+                    );
+                    printDoc.DefaultPageSettings.PaperSize = paperSize;
+                }
+
                 // For 4x6 photo paper, ALWAYS use zero margins so paper boundaries are preserved without shifting
                 printDoc.DefaultPageSettings.Margins = (is4x6 || !enableBorder) ? new Margins(0, 0, 0, 0) : new Margins(25, 25, 25, 25);
                 printDoc.DefaultPageSettings.Color = (colorMode == "COLOR");
@@ -77,31 +110,55 @@ namespace SmartXeroxHub.Agent.Core
                 {
                     if (e.Graphics == null) return;
 
-                    // Use PageBounds for 4x6 photo paper to utilize full hardware paper area
-                    var printableArea = (is4x6 || !enableBorder) ? e.PageBounds : e.MarginBounds;
                     var srcW = originalBmp.Width;
                     var srcH = originalBmp.Height;
 
-                    float scale;
-                    // For 4x6 photo paper, ALWAYS use Math.Min so 8 passport photos fit entirely with zero cropping
+                    int x, y, w, h;
+
                     if (is4x6)
                     {
-                        scale = Math.Min((float)printableArea.Width / srcW, (float)printableArea.Height / srcH);
-                    }
-                    else if (fitMode == "FILL" || fitMode == "CROP")
-                    {
-                        scale = Math.Max((float)printableArea.Width / srcW, (float)printableArea.Height / srcH);
+                        // Hardware margin calibration for HP Smart Tank 580-590 series:
+                        // In Landscape on HP 580, physical hardware margins are ~11.67 hundredths of an inch (35 px at 300 DPI)
+                        // on left and right, and ~11.67 top / ~40 trailing edge bottom.
+                        // GDI+ Graphics (0,0) is placed at the hardware margin origin.
+                        // We calibrate printable width so the entire sheet fits with balanced margins on BOTH left and right,
+                        // ensuring right-side photos and borders are NEVER cropped!
+                        float hardMarginX = e.PageSettings.HardMarginX > 0 ? e.PageSettings.HardMarginX : 11.67f;
+                        float hardMarginY = e.PageSettings.HardMarginY > 0 ? e.PageSettings.HardMarginY : 11.67f;
+
+                        float availableW = e.PageBounds.Width - (2 * hardMarginX);
+                        float availableH = e.PageBounds.Height - hardMarginY - 35f;
+
+                        float scale = Math.Min(availableW / srcW, availableH / srcH);
+                        scale *= (float)(scalePercent / 100.0);
+
+                        w = (int)(srcW * scale);
+                        h = (int)(srcH * scale);
+
+                        // Center horizontally between hardware margins for balanced left & right borders
+                        x = (int)((availableW - w) / 2);
+                        y = 0; // Align to top hardware margin so top space is absorbed and bottom row avoids cutoff
                     }
                     else
                     {
-                        scale = Math.Min((float)printableArea.Width / srcW, (float)printableArea.Height / srcH);
-                    }
-                    scale *= (float)(scalePercent / 100.0);
+                        var printableArea = enableBorder ? e.MarginBounds : e.PageBounds;
+                        float scale;
+                        if (fitMode == "FILL" || fitMode == "CROP")
+                        {
+                            scale = Math.Max((float)printableArea.Width / srcW, (float)printableArea.Height / srcH);
+                        }
+                        else
+                        {
+                            scale = Math.Min((float)printableArea.Width / srcW, (float)printableArea.Height / srcH);
+                        }
+                        scale *= (float)(scalePercent / 100.0);
 
-                    var w = (int)(srcW * scale);
-                    var h = (int)(srcH * scale);
-                    var x = printableArea.X + (printableArea.Width - w) / 2;
-                    var y = printableArea.Y + (printableArea.Height - h) / 2;
+                        w = (int)(srcW * scale);
+                        h = (int)(srcH * scale);
+                        x = printableArea.X + (printableArea.Width - w) / 2;
+                        y = printableArea.Y + (printableArea.Height - h) / 2;
+                    }
+
                     var destRect = new Rectangle(x, y, w, h);
 
                     e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
