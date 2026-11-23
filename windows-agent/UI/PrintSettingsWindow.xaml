@@ -1,94 +1,273 @@
 <Window x:Class="SmartXeroxHub.Agent.UI.PrintSettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Order Print Layout &amp; Hardware Settings"
-        Height="540" Width="680"
+        Title="Order Service Settings &amp; Live Document Preview"
+        Height="680" Width="980"
         WindowStartupLocation="CenterOwner"
-        ResizeMode="NoResize"
-        Background="#F8FAFC">
-    <Grid Margin="20">
+        ResizeMode="CanResize"
+        Background="#F1F5F9">
+    <Grid Margin="16">
         <Grid.RowDefinitions>
             <!-- Header -->
             <RowDefinition Height="Auto"/>
-            <!-- Settings Form -->
+            <!-- Main Content: Left Settings & Right Preview -->
             <RowDefinition Height="*"/>
-            <!-- Action Buttons -->
+            <!-- Footer Action Buttons -->
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <Border Grid.Row="0" Background="#0284C7" CornerRadius="8" Padding="16,12" Margin="0,0,0,14">
-            <StackPanel>
-                <TextBlock x:Name="TxtOrderHeader" Text="PRINT SETTINGS • ORDER 1-221126D" Foreground="White" FontWeight="Bold" FontSize="16"/>
-                <TextBlock x:Name="TxtOrderSub" Text="Configure HP Smart Tank 589 spooler options and layout" Foreground="#BAE6FD" FontSize="12" Margin="0,2,0,0"/>
-            </StackPanel>
+        <Border Grid.Row="0" Background="#0284C7" CornerRadius="8" Padding="16,10" Margin="0,0,0,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock x:Name="TxtOrderHeader" Text="PRINT SETTINGS • ORDER 1-221126D" Foreground="White" FontWeight="Bold" FontSize="16"/>
+                    <TextBlock x:Name="TxtOrderSub" Text="Adaptive configuration based on service type" Foreground="#BAE6FD" FontSize="12" Margin="0,2,0,0"/>
+                </StackPanel>
+                <Border Grid.Column="1" x:Name="BadgeServiceType" Background="#0369A1" CornerRadius="6" Padding="10,4" VerticalAlignment="Center">
+                    <TextBlock x:Name="TxtBadgeService" Text="DOCUMENT" Foreground="White" FontWeight="Bold" FontSize="12"/>
+                </Border>
+            </Grid>
         </Border>
 
-        <!-- Form -->
-        <Border Grid.Row="1" Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1" Padding="16">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <StackPanel>
-                    <!-- Paper Type Selection -->
-                    <TextBlock Text="Paper Type &amp; Media Profile" FontWeight="Bold" Foreground="#334155" FontSize="13" Margin="0,0,0,6"/>
-                    <ComboBox x:Name="ComboPaperType" Height="36" Padding="8,6" Margin="0,0,0,14" SelectionChanged="ComboPaperType_SelectionChanged">
-                        <ComboBoxItem Content="HP Glossy Photo Paper (4 × 6 inch) [Auto-Selected for Photos]" Tag="PHOTO_4X6"/>
-                        <ComboBoxItem Content="HP Premium Glossy Photo Paper (A4 Full Sheet)" Tag="PHOTO_A4"/>
-                        <ComboBoxItem Content="Plain A4 Copier Paper (75-80 GSM)" Tag="NORMAL_A4"/>
-                    </ComboBox>
+        <!-- Main Content (2 Columns) -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <!-- Left: Adaptive Settings Form -->
+                <ColumnDefinition Width="420"/>
+                <!-- Divider -->
+                <ColumnDefinition Width="14"/>
+                <!-- Right: Live Visual Preview -->
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
 
-                    <!-- Color Mode -->
-                    <TextBlock Text="Color Mode" FontWeight="Bold" Foreground="#334155" FontSize="13" Margin="0,0,0,6"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
-                        <RadioButton x:Name="RadioColor" Content="Color (CMYK vivid output)" GroupName="ColorMode" IsChecked="True" Margin="0,0,20,0" FontWeight="SemiBold"/>
-                        <RadioButton x:Name="RadioBw" Content="Black &amp; White (Monochrome K-only)" GroupName="ColorMode" FontWeight="SemiBold"/>
-                    </StackPanel>
+            <!-- LEFT SETTINGS PANEL -->
+            <Border Grid.Column="0" Background="White" CornerRadius="8" BorderBrush="#CBD5E1" BorderThickness="1" Padding="14">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <!-- ================= SCAN ONLY SECTION ================= -->
+                        <StackPanel x:Name="PanelScanSettings" Visibility="Collapsed">
+                            <TextBlock Text="🔍 Scanner Acquisition Parameters" FontWeight="Bold" Foreground="#0F172A" FontSize="14" Margin="0,0,0,10"/>
+                            <TextBlock Text="HP Smart Tank 589 flatbed glass capture options:" Foreground="#64748B" FontSize="11" Margin="0,0,0,12"/>
 
-                    <!-- DPI Resolution -->
-                    <TextBlock Text="Print Resolution (DPI)" FontWeight="Bold" Foreground="#334155" FontSize="13" Margin="0,0,0,6"/>
-                    <ComboBox x:Name="ComboDpi" Height="36" Padding="8,6" Margin="0,0,0,14">
-                        <ComboBoxItem Content="300 DPI — High Speed Text / Documents" Tag="300"/>
-                        <ComboBoxItem Content="600 DPI — Standard Professional Photo Quality" Tag="600" IsSelected="True"/>
-                        <ComboBoxItem Content="1200 DPI — Maximum Photo Resolution" Tag="1200"/>
-                    </ComboBox>
-
-                    <!-- Layout: N-Up (Pages per sheet) & Orientation -->
-                    <Grid Margin="0,0,0,14">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="16"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="Pages Per Sheet (N-Up)" FontWeight="Bold" Foreground="#334155" FontSize="13" Margin="0,0,0,6"/>
-                            <ComboBox x:Name="ComboNUp" Height="36" Padding="8,6">
-                                <ComboBoxItem Content="1-Up (1 page per sheet)" Tag="1" IsSelected="True"/>
-                                <ComboBoxItem Content="2-Up (2 pages side-by-side)" Tag="2"/>
-                                <ComboBoxItem Content="4-Up (4 pages per sheet)" Tag="4"/>
+                            <!-- Resolution Selection -->
+                            <TextBlock Text="Optical Scan Resolution (DPI)" FontWeight="Bold" Foreground="#334155" FontSize="12" Margin="0,0,0,6"/>
+                            <ComboBox x:Name="ComboScanDpi" Height="34" Padding="6,4" Margin="0,0,0,14">
+                                <ComboBoxItem Content="150 DPI — Fast Draft / Low File Size" Tag="150"/>
+                                <ComboBoxItem Content="300 DPI — Recommended Standard Quality" Tag="300" IsSelected="True"/>
+                                <ComboBoxItem Content="600 DPI — High Resolution Archival" Tag="600"/>
                             </ComboBox>
+
+                            <!-- Color Mode -->
+                            <TextBlock Text="Color Mode" FontWeight="Bold" Foreground="#334155" FontSize="12" Margin="0,0,0,6"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                                <RadioButton x:Name="RadioScanColor" Content="Color (24-bit RGB)" GroupName="ScanColorGroup" IsChecked="True" FontWeight="SemiBold" Margin="0,0,16,0"/>
+                                <RadioButton x:Name="RadioScanBw" Content="Grayscale (8-bit)" GroupName="ScanColorGroup" FontWeight="SemiBold"/>
+                            </StackPanel>
+
+                            <!-- Format -->
+                            <TextBlock Text="Output Document Format" FontWeight="Bold" Foreground="#334155" FontSize="12" Margin="0,0,0,6"/>
+                            <ComboBox x:Name="ComboScanFormat" Height="34" Padding="6,4" Margin="0,0,0,14">
+                                <ComboBoxItem Content="PDF — Searchable Multi-Page Document" Tag="PDF" IsSelected="True"/>
+                                <ComboBoxItem Content="JPEG — High Definition Image" Tag="JPEG"/>
+                            </ComboBox>
+
+                            <Border Background="#F0FDF4" BorderBrush="#BBF7D0" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,6,0,0">
+                                <TextBlock Text="ℹ️ Document paper type, duplex, and N-up options are hidden because they are not applicable to scanning." Foreground="#15803D" FontSize="11" TextWrapping="Wrap"/>
+                            </Border>
                         </StackPanel>
 
-                        <StackPanel Grid.Column="2">
-                            <TextBlock Text="Orientation" FontWeight="Bold" Foreground="#334155" FontSize="13" Margin="0,0,0,6"/>
-                            <ComboBox x:Name="ComboOrientation" Height="36" Padding="8,6">
-                                <ComboBoxItem Content="Portrait (Standard)" Tag="PORTRAIT" IsSelected="True"/>
-                                <ComboBoxItem Content="Landscape" Tag="LANDSCAPE"/>
+                        <!-- ================= PHOTO & PASSPORT SECTION ================= -->
+                        <StackPanel x:Name="PanelPhotoSettings" Visibility="Collapsed">
+                            <TextBlock x:Name="TxtPhotoHeader" Text="🖼️ Photo &amp; Passport Printing Settings" FontWeight="Bold" Foreground="#0F172A" FontSize="14" Margin="0,0,0,6"/>
+                            <TextBlock x:Name="TxtPhotoSub" Text="HP Smart Tank 589 high-gloss photo engine options" Foreground="#64748B" FontSize="11" Margin="0,0,0,12"/>
+
+                            <!-- Paper Type Selection -->
+                            <TextBlock Text="Photo Paper Media Profile" FontWeight="Bold" Foreground="#334155" FontSize="12" Margin="0,0,0,6"/>
+                            <ComboBox x:Name="ComboPhotoPaperType" Height="34" Padding="6,4" Margin="0,0,0,12" SelectionChanged="ComboPhotoPaperType_SelectionChanged">
+                                <ComboBoxItem Content="HP Glossy Photo Paper (4 × 6 inch) [Auto-Selected]" Tag="PHOTO_4X6" IsSelected="True"/>
+                                <ComboBoxItem Content="HP Premium Glossy Photo Paper (A4 Full Sheet)" Tag="PHOTO_A4"/>
+                                <ComboBoxItem Content="Plain Copier Paper (A4 80 GSM)" Tag="NORMAL_A4"/>
                             </ComboBox>
+
+                            <!-- Photo Framing Mode -->
+                            <TextBlock Text="Photo Framing (Aspect Ratio)" FontWeight="Bold" Foreground="#334155" FontSize="12" Margin="0,0,0,6"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                <RadioButton x:Name="RadioPhotoFit" Content="Fit to Paper (Entire photo visible)" GroupName="PhotoFitGroup" IsChecked="True" FontWeight="SemiBold" Margin="0,0,14,0" Checked="OnSettingChanged"/>
+                                <RadioButton x:Name="RadioPhotoCrop" Content="Crop to Paper (Fill whole sheet)" GroupName="PhotoFitGroup" FontWeight="SemiBold" Checked="OnSettingChanged"/>
+                            </StackPanel>
+
+                            <!-- Border Toggle -->
+                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,12">
+                                <CheckBox x:Name="ChkPhotoBorder" Content="Enable Clean Margin Border (White border around photo)" FontWeight="Bold" Foreground="#0F172A" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
+                            </Border>
+
+                            <!-- DPI -->
+                            <TextBlock Text="Print Resolution (DPI)" FontWeight="Bold" Foreground="#334155" FontSize="12" Margin="0,0,0,6"/>
+                            <ComboBox x:Name="ComboPhotoDpi" Height="34" Padding="6,4" Margin="0,0,0,12">
+                                <ComboBoxItem Content="600 DPI — Recommended High Quality Photo" Tag="600" IsSelected="True"/>
+                                <ComboBoxItem Content="1200 DPI — Maximum Studio Photo Resolution" Tag="1200"/>
+                                <ComboBoxItem Content="300 DPI — Fast Draft Print" Tag="300"/>
+                            </ComboBox>
+
+                            <!-- Color Mode -->
+                            <TextBlock Text="Color Mode" FontWeight="Bold" Foreground="#334155" FontSize="12" Margin="0,0,0,6"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                <RadioButton x:Name="RadioPhotoColor" Content="Color (CMYK vivid)" GroupName="PhotoColorGroup" IsChecked="True" FontWeight="SemiBold" Margin="0,0,16,0" Checked="OnSettingChanged"/>
+                                <RadioButton x:Name="RadioPhotoBw" Content="Black &amp; White" GroupName="PhotoColorGroup" FontWeight="SemiBold" Checked="OnSettingChanged"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- ================= DOCUMENT SECTION ================= -->
+                        <StackPanel x:Name="PanelDocSettings" Visibility="Visible">
+                            <TextBlock Text="📄 Document Print Layout &amp; Options" FontWeight="Bold" Foreground="#0F172A" FontSize="14" Margin="0,0,0,6"/>
+                            <TextBlock Text="HP Smart Tank 589 native document spooler settings" Foreground="#64748B" FontSize="11" Margin="0,0,0,10"/>
+
+                            <!-- Paper Type & Color Mode -->
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Paper Type" FontWeight="Bold" Foreground="#334155" FontSize="12" Margin="0,0,0,4"/>
+                                    <ComboBox x:Name="ComboDocPaperType" Height="32" Padding="6,4">
+                                        <ComboBoxItem Content="Plain A4 (80 GSM)" Tag="NORMAL_A4" IsSelected="True"/>
+                                        <ComboBoxItem Content="HP Glossy (4×6)" Tag="PHOTO_4X6"/>
+                                        <ComboBoxItem Content="HP Glossy (A4)" Tag="PHOTO_A4"/>
+                                    </ComboBox>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Color Mode" FontWeight="Bold" Foreground="#334155" FontSize="12" Margin="0,0,0,4"/>
+                                    <ComboBox x:Name="ComboDocColorMode" Height="32" Padding="6,4" SelectionChanged="OnSettingChanged">
+                                        <ComboBoxItem Content="B&amp;W (K-Only)" Tag="BW" IsSelected="True"/>
+                                        <ComboBoxItem Content="Color (CMYK)" Tag="COLOR"/>
+                                    </ComboBox>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Pages Per Sheet (N-Up) & Resolution -->
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Pages/Sheet (N-Up)" FontWeight="Bold" Foreground="#334155" FontSize="12" Margin="0,0,0,4"/>
+                                    <ComboBox x:Name="ComboDocNUp" Height="32" Padding="6,4" SelectionChanged="OnSettingChanged">
+                                        <ComboBoxItem Content="1-Up (Standard)" Tag="1" IsSelected="True"/>
+                                        <ComboBoxItem Content="2-Up (Side-by-side)" Tag="2"/>
+                                        <ComboBoxItem Content="4-Up (2×2 Grid)" Tag="4"/>
+                                    </ComboBox>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Resolution (DPI)" FontWeight="Bold" Foreground="#334155" FontSize="12" Margin="0,0,0,4"/>
+                                    <ComboBox x:Name="ComboDocDpi" Height="32" Padding="6,4">
+                                        <ComboBoxItem Content="300 DPI (Fast)" Tag="300" IsSelected="True"/>
+                                        <ComboBoxItem Content="600 DPI (Fine)" Tag="600"/>
+                                    </ComboBox>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Orientation & Scope -->
+                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock Text="Orientation" FontWeight="Bold" Foreground="#334155" FontSize="12" Margin="0,0,0,4"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                        <RadioButton x:Name="RadioOrientPortrait" Content="Portrait (Vertical)" GroupName="OrientGroup" IsChecked="True" FontWeight="SemiBold" Margin="0,0,16,0" Checked="OnSettingChanged"/>
+                                        <RadioButton x:Name="RadioOrientLandscape" Content="Landscape (Horizontal)" GroupName="OrientGroup" FontWeight="SemiBold" Checked="OnSettingChanged"/>
+                                    </StackPanel>
+                                    <TextBlock Text="Apply Orientation To:" FontSize="11" FontWeight="SemiBold" Foreground="#64748B" Margin="0,0,0,4"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <RadioButton x:Name="RadioOrientScopeAll" Content="All Pages" GroupName="OrientScope" IsChecked="True" Margin="0,0,12,0"/>
+                                        <RadioButton x:Name="RadioOrientScopeCurrent" Content="Current Page Only" GroupName="OrientScope"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Zoom / Scaling Slider & Scope -->
+                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <Grid Margin="0,0,0,4">
+                                        <TextBlock x:Name="TxtScaleLabel" Text="Zoom / Scaling: 100%" FontWeight="Bold" Foreground="#334155" FontSize="12"/>
+                                        <Button Content="Reset 100%" Click="BtnResetZoom_Click" HorizontalAlignment="Right" Padding="6,2" FontSize="10" Background="Transparent" Foreground="#0284C7" BorderThickness="0" Cursor="Hand"/>
+                                    </Grid>
+                                    <Slider x:Name="SliderScale" Minimum="50" Maximum="150" Value="100" TickFrequency="5" IsSnapToTickEnabled="True" ValueChanged="SliderScale_ValueChanged" Margin="0,0,0,8"/>
+                                    <TextBlock Text="Apply Scaling To:" FontSize="11" FontWeight="SemiBold" Foreground="#64748B" Margin="0,0,0,4"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <RadioButton x:Name="RadioScaleScopeAll" Content="All Pages" GroupName="ScaleScope" IsChecked="True" Margin="0,0,12,0"/>
+                                        <RadioButton x:Name="RadioScaleScopeCurrent" Content="Current Page Only" GroupName="ScaleScope"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Border Toggle -->
+                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="10,8">
+                                <CheckBox x:Name="ChkDocBorder" Content="Enable Margin Border (Draw border box around page)" FontWeight="Bold" Foreground="#0F172A" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
+                            </Border>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+
+            <!-- RIGHT LIVE VISUAL PREVIEW PANEL -->
+            <Border Grid.Column="2" Background="#1E293B" CornerRadius="8" Padding="14">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <!-- Preview Controls Bar -->
+                        <RowDefinition Height="Auto"/>
+                        <!-- Preview Canvas/Image Area -->
+                        <RowDefinition Height="*"/>
+                        <!-- Footer Info -->
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Preview Bar -->
+                    <Grid Grid.Row="0" Margin="0,0,0,10">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="👁️ Live Preview" Foreground="White" FontWeight="Bold" FontSize="14" Margin="0,0,12,0"/>
+                            <TextBlock x:Name="TxtPreviewSubtitle" Text="Page 1 of 1" Foreground="#94A3B8" FontSize="12" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- Page Nav for Documents -->
+                        <StackPanel x:Name="PanelPageNav" Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Content="◀ Prev Page" Click="BtnPrevPage_Click" Padding="8,4" Background="#334155" Foreground="White" BorderThickness="0" Margin="0,0,6,0" Cursor="Hand"/>
+                            <TextBlock x:Name="TxtPageCounter" Text="1 / 1" Foreground="White" FontWeight="Bold" VerticalAlignment="Center" Margin="4,0,10,0"/>
+                            <Button Content="Next Page ▶" Click="BtnNextPage_Click" Padding="8,4" Background="#334155" Foreground="White" BorderThickness="0" Cursor="Hand"/>
                         </StackPanel>
                     </Grid>
 
-                    <!-- Scaling -->
-                    <TextBlock Text="Page Scaling" FontWeight="Bold" Foreground="#334155" FontSize="13" Margin="0,0,0,6"/>
-                    <ComboBox x:Name="ComboScale" Height="36" Padding="8,6" Margin="0,0,0,6">
-                        <ComboBoxItem Content="100% — Original 1:1 Actual Size" Tag="100" IsSelected="True"/>
-                        <ComboBoxItem Content="Fit to Printable Margins" Tag="FIT"/>
-                    </ComboBox>
-                </StackPanel>
-            </ScrollViewer>
-        </Border>
+                    <!-- Preview Image Frame -->
+                    <Border Grid.Row="1" Background="#0F172A" CornerRadius="6" BorderBrush="#334155" BorderThickness="1" ClipToBounds="True">
+                        <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <!-- Visual Sheet Container -->
+                            <Border x:Name="BorderSheetFrame" Background="White" CornerRadius="2" Margin="10"
+                                    BorderBrush="#94A3B8" BorderThickness="1">
+                                <Grid>
+                                    <Image x:Name="ImgPreview" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <!-- Visual Border Overlay if Enabled -->
+                                    <Border x:Name="BorderVisualOverlay" BorderBrush="#2563EB" BorderThickness="2" Margin="4" Visibility="Collapsed"/>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- Footer Info -->
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="SpaceBetween" Margin="0,10,0,0">
+                        <TextBlock x:Name="TxtPreviewDimensions" Text="Target: A4 (827 × 1169 px)" Foreground="#64748B" FontSize="11"/>
+                        <TextBlock x:Name="TxtPreviewStatus" Text="Preview: 100% Scale • Portrait" Foreground="#38BDF8" FontSize="11" FontWeight="SemiBold"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
 
         <!-- Footer Buttons -->
-        <Grid Grid.Row="2" Margin="0,14,0,0">
+        <Grid Grid.Row="2" Margin="0,12,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -98,7 +277,7 @@
 
             <Button Content="Cancel" Click="BtnCancel_Click" Padding="16,8" Background="#F1F5F9" BorderBrush="#CBD5E1" FontWeight="SemiBold"/>
             <Button Grid.Column="2" Content="💾 Save Settings" Click="BtnSave_Click" Padding="16,8" Background="#0284C7" Foreground="White" FontWeight="Bold" Margin="0,0,8,0" BorderThickness="0"/>
-            <Button Grid.Column="3" Content="🖨️ Save &amp; Print to HP 589" Click="BtnSaveAndPrint_Click" Padding="18,8" Background="#059669" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
+            <Button Grid.Column="3" Content="🖨️ Save &amp; Print Immediately" Click="BtnSaveAndPrint_Click" Padding="16,8" Background="#059669" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
         </Grid>
     </Grid>
 </Window>

@@ -93,6 +93,11 @@ namespace SmartXeroxHub.Agent.Core
             SaveState();
         }
 
+        public DuplexJob? GetActiveDuplexJob(string orderId)
+        {
+            return State.ActiveDuplexJobs.Find(j => j.OrderId == orderId);
+        }
+
         public void RemoveDuplexJob(string orderId)
         {
             State.ActiveDuplexJobs.RemoveAll(j => j.OrderId == orderId);

@@ -97,6 +97,8 @@ export interface OrderPrintSettings {
   paperType: PaperType;
   paperSize: PaperSize;
   colorMode: PrintColorMode;
+  enableBorder?: boolean;
+  fitMode?: 'FIT' | 'CROP';
   pageScales?: Record<number, number>;
   pageOrientations?: Record<number, 'PORTRAIT' | 'LANDSCAPE'>;
 }

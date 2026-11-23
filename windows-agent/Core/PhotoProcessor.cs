@@ -23,6 +23,8 @@ namespace SmartXeroxHub.Agent.Core
         public string PaperType { get; set; } = "NORMAL_A4"; // NORMAL_A4, PHOTO_A4, PHOTO_4X6
         public string ColorMode { get; set; } = "BW"; // BW, COLOR
         public string Scope { get; set; } = "ALL_PAGES"; // ALL_PAGES, CURRENT_PAGE
+        public bool EnableBorder { get; set; } = false;
+        public string FitMode { get; set; } = "FIT"; // FIT or CROP
         public List<int>? PageNumbers { get; set; } = null; // null = all pages (1-based)
         public Dictionary<int, double>? PageScales { get; set; } = null; // 1-based page -> scale percent
         public Dictionary<int, string>? PageOrientations { get; set; } = null; // 1-based page -> orientation
@@ -38,10 +40,11 @@ namespace SmartXeroxHub.Agent.Core
             string printerName,
             string paperType, // "PHOTO_A4" or "PHOTO_4X6"
             string colorMode, // "COLOR" or "BW"
-            string fitMode,   // "FIT" or "FILL"
+            string fitMode,   // "FIT" or "CROP" / "FILL"
             string docTitle = "SmartXerox_Photo",
             double scalePercent = 100.0,
-            string orientation = "PORTRAIT"
+            string orientation = "PORTRAIT",
+            bool enableBorder = false
         )
         {
             if (!File.Exists(imagePath))
@@ -63,7 +66,7 @@ namespace SmartXeroxHub.Agent.Core
                     is4x6 ? 600 : 1169
                 );
                 printDoc.DefaultPageSettings.PaperSize = paperSize;
-                printDoc.DefaultPageSettings.Margins = new Margins(10, 10, 10, 10);
+                printDoc.DefaultPageSettings.Margins = enableBorder ? new Margins(25, 25, 25, 25) : new Margins(0, 0, 0, 0);
                 printDoc.DefaultPageSettings.Color = (colorMode == "COLOR");
                 printDoc.DefaultPageSettings.Landscape = (orientation == "LANDSCAPE");
 
@@ -78,7 +81,7 @@ namespace SmartXeroxHub.Agent.Core
                     var srcH = originalBmp.Height;
 
                     float scale;
-                    if (fitMode == "FILL")
+                    if (fitMode == "FILL" || fitMode == "CROP")
                     {
                         scale = Math.Max((float)printableArea.Width / srcW, (float)printableArea.Height / srcH);
                     }
@@ -116,6 +119,12 @@ namespace SmartXeroxHub.Agent.Core
                     else
                     {
                         e.Graphics.DrawImage(originalBmp, destRect);
+                    }
+
+                    if (enableBorder)
+                    {
+                        using var pen = new Pen(Color.FromArgb(180, 180, 180), 2.0f);
+                        e.Graphics.DrawRectangle(pen, destRect);
                     }
 
                     e.HasMorePages = false;
@@ -329,6 +338,12 @@ namespace SmartXeroxHub.Agent.Core
                         else
                         {
                             e.Graphics.DrawImage(pageBmp, destRect);
+                        }
+
+                        if (options.EnableBorder)
+                        {
+                            using var borderPen = new Pen(Color.FromArgb(160, 160, 160), 1.5f);
+                            e.Graphics.DrawRectangle(borderPen, destRect);
                         }
                     }
 

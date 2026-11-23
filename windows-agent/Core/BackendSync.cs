@@ -62,7 +62,18 @@ namespace SmartXeroxHub.Agent.Core
                         return "✨ Finalize & Deliver Scan";
                     return $"🔍 Approve & Scan (1/{RequestedPagesCount})";
                 }
-                if (IsDuplex) return "📑 Approve & Duplex";
+                if (IsDuplex)
+                {
+                    if (DuplexStage == "FIRST_SIDE_PRINTING" || Status == "FIRST_SIDE_PRINTING")
+                        return "⏳ Printing Odd Pages...";
+                    if (DuplexStage == "AWAITING_PAPER_REVERSAL" || Status == "AWAITING_PAPER_REVERSAL")
+                        return "🔄 2. Page Reversed (Confirm)";
+                    if (DuplexStage == "SECOND_SIDE_PRINTING" || Status == "SECOND_SIDE_PRINTING")
+                        return "⏳ Printing Other Side...";
+                    if (DuplexStage == "COMPLETED" || Status == "COMPLETE")
+                        return "✅ Duplex Done";
+                    return "▶ 1. Print Odd Pages";
+                }
                 if (IsPassport8) return "🖨️ Approve & Print (4×6 HP Paper)";
                 return "🖨️ Approve & Print";
             }
@@ -316,11 +327,36 @@ namespace SmartXeroxHub.Agent.Core
                 string orderId = payload.GetProperty("orderId").GetString()!;
                 string serviceType = payload.GetProperty("serviceType").GetString()!;
                 var order = payload.GetProperty("order");
-                string fileUrl = order.GetProperty("fileUrl").GetString()!;
-                string originalName = order.GetProperty("originalFileName").GetString()!;
-                string printerName = _deviceManager.ActivePrinter?.Name ?? "HP Smart Tank 580-590 series";
+                
+                string fileUrl = "";
+                string originalName = "Document";
+                if (order.TryGetProperty("fileUrl", out var fuProp))
+                {
+                    fileUrl = fuProp.GetString() ?? "";
+                }
+                if (order.TryGetProperty("originalFileName", out var fnProp))
+                {
+                    originalName = fnProp.GetString() ?? "Document.pdf";
+                }
 
-                LoggingManager.Info($"[BackendSync] Executing print trigger for {originalName} on printer '{printerName}'");
+                // If photo or passport order with images array:
+                bool hasImagesArray = order.TryGetProperty("images", out var imgs) && imgs.ValueKind == JsonValueKind.Array && imgs.GetArrayLength() > 0;
+                if (string.IsNullOrEmpty(fileUrl) && hasImagesArray)
+                {
+                    var firstImg = imgs[0];
+                    if (firstImg.TryGetProperty("fileUrl", out var ifu)) fileUrl = ifu.GetString() ?? "";
+                    if (firstImg.TryGetProperty("fileName", out var ifn)) originalName = ifn.GetString() ?? "Photo.jpg";
+                    else if (firstImg.TryGetProperty("originalFileName", out var iofn)) originalName = iofn.GetString() ?? "Photo.jpg";
+                }
+
+                string printerName = _deviceManager.ActivePrinter?.Name ?? "HP Smart Tank 580-590 series";
+                LoggingManager.Info($"[BackendSync] Executing print trigger for {originalName} (Service: {serviceType}) on printer '{printerName}'");
+
+                if (string.IsNullOrEmpty(fileUrl))
+                {
+                    LoggingManager.Error($"[BackendSync] Cannot print order {orderId}: fileUrl is missing.");
+                    return;
+                }
 
                 // Download / copy to RAW_Inputs/User_Uploads
                 var localFilePath = await EnsureLocalFileAsync(fileUrl, originalName);
@@ -329,6 +365,13 @@ namespace SmartXeroxHub.Agent.Core
                 if (order.TryGetProperty("colorMode", out var cmProp)) printOpt.ColorMode = cmProp.GetString() ?? "BW";
                 if (order.TryGetProperty("paperSize", out var psProp)) printOpt.PaperSize = psProp.GetString() ?? "A4";
                 if (order.TryGetProperty("paperType", out var ptProp)) printOpt.PaperType = ptProp.GetString() ?? "NORMAL_A4";
+
+                bool isPassport8 = false;
+                if (order.TryGetProperty("photosPerSheet", out var ppsProp) && ppsProp.GetInt32() == 8) isPassport8 = true;
+                if (order.TryGetProperty("photoType", out var ptTag) && ptTag.GetString() == "PASSPORT_8") isPassport8 = true;
+
+                if (order.TryGetProperty("enableBorder", out var ebProp)) printOpt.EnableBorder = ebProp.GetBoolean();
+                if (order.TryGetProperty("fitMode", out var fmProp)) printOpt.FitMode = fmProp.GetString() ?? "FIT";
 
                 if (order.TryGetProperty("printSettings", out var ps))
                 {
@@ -339,13 +382,22 @@ namespace SmartXeroxHub.Agent.Core
                     if (ps.TryGetProperty("paperType", out var pt2)) printOpt.PaperType = pt2.GetString() ?? printOpt.PaperType;
                     if (ps.TryGetProperty("paperSize", out var psz2)) printOpt.PaperSize = psz2.GetString() ?? printOpt.PaperSize;
                     if (ps.TryGetProperty("colorMode", out var cm2)) printOpt.ColorMode = cm2.GetString() ?? printOpt.ColorMode;
+                    if (ps.TryGetProperty("enableBorder", out var eb2)) printOpt.EnableBorder = eb2.GetBoolean();
+                    if (ps.TryGetProperty("fitMode", out var fm2)) printOpt.FitMode = fm2.GetString() ?? printOpt.FitMode;
+                }
+
+                if (isPassport8)
+                {
+                    printOpt.PaperSize = "4X6";
+                    printOpt.PaperType = "PHOTO_4X6";
+                    printOpt.Orientation = "LANDSCAPE";
                 }
 
                 if (serviceType == "DOCUMENT")
                 {
-                    string sides = order.GetProperty("sides").GetString()!;
-                    int copies = order.GetProperty("copies").GetInt32();
-                    string orderNum = order.GetProperty("orderNumber").GetString()!;
+                    string sides = order.TryGetProperty("sides", out var sProp) ? sProp.GetString()! : "SINGLE";
+                    int copies = order.TryGetProperty("copies", out var cpProp) ? cpProp.GetInt32() : 1;
+                    string orderNum = order.TryGetProperty("orderNumber", out var onProp) ? onProp.GetString()! : orderId;
 
                     if (sides == "MANUAL_DUPLEX")
                     {
@@ -363,16 +415,36 @@ namespace SmartXeroxHub.Agent.Core
                         await UpdateOrderStatusOnBackendAsync(orderId, "DOCUMENT", "COMPLETE");
                     }
                 }
-                else if (serviceType == "PHOTO")
+                else if (serviceType == "PHOTO" || serviceType == "PASSPORT")
                 {
-                    string paperType = order.GetProperty("paperType").GetString()!;
-                    string colorMode = order.GetProperty("colorMode").GetString()!;
-                    int copies = order.GetProperty("copies").GetInt32();
-                    string orderNum = order.GetProperty("orderNumber").GetString()!;
+                    string paperType = isPassport8 ? "PHOTO_4X6" : (order.TryGetProperty("paperType", out var ptOrder) ? ptOrder.GetString()! : printOpt.PaperType);
+                    string colorMode = order.TryGetProperty("colorMode", out var cmOrder) ? cmOrder.GetString()! : printOpt.ColorMode;
+                    int copies = order.TryGetProperty("copies", out var cpOrder) ? cpOrder.GetInt32() : 1;
+                    string orderNum = order.TryGetProperty("orderNumber", out var onOrder) ? onOrder.GetString()! : orderId;
 
-                    for (int c = 1; c <= copies; c++)
+                    if (hasImagesArray && imgs.GetArrayLength() > 1)
                     {
-                        PhotoProcessor.PrintPhoto(localFilePath, printerName, paperType, colorMode, "FIT", $"{orderNum}_Photo_Copy{c}", printOpt.ScalePercent, printOpt.Orientation);
+                        for (int i = 0; i < imgs.GetArrayLength(); i++)
+                        {
+                            var curImg = imgs[i];
+                            string imgUrl = curImg.TryGetProperty("fileUrl", out var iu) ? iu.GetString() ?? "" : "";
+                            string imgName = curImg.TryGetProperty("fileName", out var iname) ? iname.GetString() ?? $"Photo_{i + 1}.jpg" : $"Photo_{i + 1}.jpg";
+                            if (!string.IsNullOrEmpty(imgUrl))
+                            {
+                                var imgLocal = await EnsureLocalFileAsync(imgUrl, imgName);
+                                for (int c = 1; c <= copies; c++)
+                                {
+                                    PhotoProcessor.PrintPhoto(imgLocal, printerName, paperType, colorMode, printOpt.FitMode, $"{orderNum}_Img{i + 1}_Copy{c}", printOpt.ScalePercent, printOpt.Orientation, printOpt.EnableBorder);
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        for (int c = 1; c <= copies; c++)
+                        {
+                            PhotoProcessor.PrintPhoto(localFilePath, printerName, paperType, colorMode, printOpt.FitMode, $"{orderNum}_Photo_Copy{c}", printOpt.ScalePercent, printOpt.Orientation, printOpt.EnableBorder);
+                        }
                     }
                     await UpdateOrderStatusOnBackendAsync(orderId, "PHOTO", "COMPLETE");
                 }

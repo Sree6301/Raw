@@ -36,7 +36,10 @@ import {
   RadioGroup,
   FormControlLabel,
   Radio,
-  Tooltip
+  Tooltip,
+  AppBar,
+  Toolbar,
+  Checkbox
 } from '@mui/material';
 import {
   LayoutDashboard,
@@ -52,7 +55,8 @@ import {
   ExternalLink,
   Eye,
   Sliders,
-  Maximize2
+  Maximize2,
+  Menu
 } from 'lucide-react';
 import {
   fetchAdminOrders,
@@ -82,6 +86,7 @@ const DRAWER_WIDTH = 260;
 
 export function App() {
   const [activeTab, setActiveTab] = useState<'overview' | 'documents' | 'photos' | 'scans' | 'printers' | 'paper' | 'settings'>('overview');
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [orders, setOrders] = useState<{
     documents: Array<PrintOrder & { duplexJob?: any }>;
     photos: PhotoOrder[];
@@ -222,20 +227,33 @@ export function App() {
     loadAllData();
   };
 
+  const handleDuplexStep = async (orderId: string, stage: DuplexStage) => {
+    await updateDuplexStage(orderId, stage);
+    if (stage === 'COMPLETED') {
+      await updateOrderAction(orderId, 'DOCUMENT', 'COMPLETE');
+    }
+    loadAllData();
+  };
+
   // Open settings modal for order
-  const handleOpenSettings = (order: PrintOrder | PhotoOrder) => {
+  const handleOpenSettings = (order: any) => {
     setSettingsModalOrder(order);
     const existing = order.printSettings;
-    const isPhoto = (order as any).paperType !== undefined && (order as any).images !== undefined;
+    const isScan = 'format' in order || order.serviceType === 'SCAN';
+    const isPhoto = !isScan && (order.images !== undefined || order.paperType?.includes('PHOTO'));
+    const isPassport = isPhoto && (order.photosPerSheet === 8 || order.photoType === 'PASSPORT_8');
+
     setCustomSettings({
-      dpi: existing?.dpi || (isPhoto ? (pricing?.defaultPhotoDpi || 600) : (order.colorMode === 'COLOR' ? (pricing?.defaultColorDpi || 300) : (pricing?.defaultBwDpi || 300))),
-      pagesPerSheet: existing?.pagesPerSheet || 1,
-      orientation: existing?.orientation || 'PORTRAIT',
+      dpi: existing?.dpi || (isScan ? (order.resolution || 300) : isPhoto ? (pricing?.defaultPhotoDpi || 600) : (order.colorMode === 'COLOR' ? (pricing?.defaultColorDpi || 300) : (pricing?.defaultBwDpi || 300))),
+      pagesPerSheet: isPassport ? 8 : (existing?.pagesPerSheet || 1),
+      orientation: isPassport ? 'LANDSCAPE' : (existing?.orientation || 'PORTRAIT'),
       scalePercent: existing?.scalePercent || 100,
       scope: existing?.scope || 'ALL_PAGES',
-      paperType: existing?.paperType || (order as any).paperType || 'NORMAL_A4',
-      paperSize: existing?.paperSize || ((order as any).paperType?.includes('4X6') ? '4X6' : 'A4'),
-      colorMode: existing?.colorMode || order.colorMode || 'BW'
+      paperType: isPassport ? 'PHOTO_GLOSSY_4X6' : (existing?.paperType || order.paperType || 'NORMAL_A4'),
+      paperSize: (isPassport || order.paperType?.includes('4X6')) ? '4X6' : (existing?.paperSize || 'A4'),
+      colorMode: existing?.colorMode || order.colorMode || 'BW',
+      enableBorder: existing?.enableBorder ?? (isPassport ? true : false),
+      fitMode: existing?.fitMode || order.fitMode || 'FIT'
     });
     setDuplexPreviewPass('FRONT');
   };
@@ -270,12 +288,120 @@ export function App() {
   const pendingScans = orders.scans.filter(s => ['SUBMITTED', 'APPROVED', 'SCANNER_READY', 'SCANNING'].includes(s.status)).length;
   const completedToday = orders.documents.filter(d => d.status === 'COMPLETED').length + orders.photos.filter(p => p.status === 'COMPLETED').length + orders.scans.filter(s => s.status === 'DOWNLOAD_AVAILABLE').length;
 
+  const drawerContent = (
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: '#0f172a', color: '#f8fafc' }}>
+      <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Box
+          component="img"
+          src="/logo.png"
+          alt="Logo"
+          sx={{ width: 44, height: 44, borderRadius: 2 }}
+        />
+        <Box>
+          <Typography variant="subtitle1" sx={{ fontWeight: 800, lineHeight: 1.2 }}>
+            {pricing?.shopName || 'SMART XEROX HUB'}
+          </Typography>
+          <Typography variant="caption" sx={{ color: '#0284c7', fontWeight: 700, letterSpacing: 0.5 }}>
+            ADMIN CONTROL CENTER
+          </Typography>
+        </Box>
+      </Box>
+
+      <Divider sx={{ borderColor: '#334155' }} />
+
+      <List sx={{ px: 1.5, py: 2 }}>
+        {[
+          { id: 'overview', label: 'Dashboard Overview', icon: <LayoutDashboard size={18} /> },
+          { id: 'documents', label: 'Document Xerox', icon: <FileText size={18} />, badge: pendingDocs },
+          { id: 'photos', label: 'Photo Printing', icon: <ImageIcon size={18} />, badge: pendingPhotos },
+          { id: 'scans', label: 'Flatbed Scanner', icon: <Scan size={18} />, badge: pendingScans },
+          { id: 'printers', label: 'HP Printers & Queue', icon: <Printer size={18} /> },
+          { id: 'paper', label: 'Paper Inventory', icon: <Layers size={18} /> },
+          { id: 'settings', label: 'Pricing & Settings', icon: <Settings size={18} /> }
+        ].map((item) => (
+          <ListItem key={item.id} disablePadding sx={{ mb: 0.5 }}>
+            <ListItemButton
+              selected={activeTab === item.id}
+              onClick={() => {
+                setActiveTab(item.id as any);
+                setMobileOpen(false);
+              }}
+              sx={{
+                borderRadius: 2,
+                py: 1.2,
+                '&.Mui-selected': {
+                  bgcolor: '#0284c7',
+                  color: 'white',
+                  '&:hover': { bgcolor: '#0369a1' },
+                  '& .MuiListItemIcon-root': { color: 'white' }
+                },
+                '&:hover': { bgcolor: '#1e293b' }
+              }}
+            >
+              <ListItemIcon sx={{ color: '#94a3b8', minWidth: 36 }}>
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText
+                primary={item.label}
+                primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 600 }}
+              />
+              {item.badge ? (
+                <Chip
+                  size="small"
+                  label={item.badge}
+                  sx={{ height: 20, fontSize: '0.75rem', bgcolor: '#ef4444', color: 'white', fontWeight: 700 }}
+                />
+              ) : null}
+            </ListItemButton>
+          </ListItem>
+        ))}
+      </List>
+
+      {/* Windows Agent Status Widget at bottom of drawer */}
+      <Box sx={{ mt: 'auto', p: 2, bgcolor: '#1e293b', m: 1.5, borderRadius: 2 }}>
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+          <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: agentStatus?.connected ? '#10b981' : '#ef4444' }} />
+          <Typography variant="caption" sx={{ fontWeight: 700, color: '#f8fafc' }}>
+            HP Smart Tank 589
+          </Typography>
+        </Stack>
+        <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block' }}>
+          Active Connection: {agentStatus?.port || 'USB001'} (USB Priority)
+        </Typography>
+        <Typography variant="caption" sx={{ color: agentStatus?.connected ? '#34d399' : '#f87171', fontWeight: 600 }}>
+          Agent: {agentStatus?.connected ? 'Online & Spooling' : 'Disconnected / Offline'}
+        </Typography>
+      </Box>
+    </Box>
+  );
+
   return (
-    <Box sx={{ display: 'flex' }}>
-      {/* Sidebar Navigation */}
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#f8fafc' }}>
+      {/* Mobile Drawer (temporary) */}
+      <Drawer
+        variant="temporary"
+        open={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          display: { xs: 'block', md: 'none' },
+          '& .MuiDrawer-paper': {
+            width: DRAWER_WIDTH,
+            boxSizing: 'border-box',
+            bgcolor: '#0f172a',
+            color: '#f8fafc',
+            borderRight: 'none'
+          }
+        }}
+      >
+        {drawerContent}
+      </Drawer>
+
+      {/* Desktop Drawer (permanent) */}
       <Drawer
         variant="permanent"
         sx={{
+          display: { xs: 'none', md: 'block' },
           width: DRAWER_WIDTH,
           flexShrink: 0,
           '& .MuiDrawer-paper': {
@@ -287,105 +413,47 @@ export function App() {
           }
         }}
       >
-        <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Box
-            component="img"
-            src="/logo.png"
-            alt="Logo"
-            sx={{ width: 44, height: 44, borderRadius: 2 }}
-          />
-          <Box>
-            <Typography variant="subtitle1" sx={{ fontWeight: 800, lineHeight: 1.2 }}>
-              SMART XEROX HUB
-            </Typography>
-            <Typography variant="caption" sx={{ color: '#94a3b8' }}>
-              Admin Control Center
-            </Typography>
-          </Box>
-        </Box>
-
-        <Divider sx={{ borderColor: '#334155' }} />
-
-        <List sx={{ px: 1.5, py: 2 }}>
-          {[
-            { id: 'overview', label: 'Dashboard Overview', icon: <LayoutDashboard size={18} /> },
-            { id: 'documents', label: 'Document Xerox', icon: <FileText size={18} />, badge: pendingDocs },
-            { id: 'photos', label: 'Photo Printing', icon: <ImageIcon size={18} />, badge: pendingPhotos },
-            { id: 'scans', label: 'Flatbed Scanner', icon: <Scan size={18} />, badge: pendingScans },
-            { id: 'printers', label: 'HP Printers & Queue', icon: <Printer size={18} /> },
-            { id: 'paper', label: 'Paper Inventory', icon: <Layers size={18} /> },
-            { id: 'settings', label: 'Pricing & Settings', icon: <Settings size={18} /> }
-          ].map((item) => (
-            <ListItem key={item.id} disablePadding sx={{ mb: 0.5 }}>
-              <ListItemButton
-                selected={activeTab === item.id}
-                onClick={() => setActiveTab(item.id as any)}
-                sx={{
-                  borderRadius: 2,
-                  py: 1.2,
-                  '&.Mui-selected': {
-                    bgcolor: '#0284c7',
-                    color: 'white',
-                    '&:hover': { bgcolor: '#0369a1' },
-                    '& .MuiListItemIcon-root': { color: 'white' }
-                  },
-                  '&:hover': { bgcolor: '#1e293b' }
-                }}
-              >
-                <ListItemIcon sx={{ color: '#94a3b8', minWidth: 36 }}>
-                  {item.icon}
-                </ListItemIcon>
-                <ListItemText
-                  primary={item.label}
-                  primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 600 }}
-                />
-                {item.badge ? (
-                  <Chip
-                    size="small"
-                    label={item.badge}
-                    sx={{ height: 20, fontSize: '0.75rem', bgcolor: '#ef4444', color: 'white', fontWeight: 700 }}
-                  />
-                ) : null}
-              </ListItemButton>
-            </ListItem>
-          ))}
-        </List>
-
-        {/* Windows Agent Status Widget at bottom of drawer */}
-        <Box sx={{ mt: 'auto', p: 2, bgcolor: '#1e293b', m: 1.5, borderRadius: 2 }}>
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: agentStatus?.connected ? '#10b981' : '#ef4444' }} />
-            <Typography variant="caption" sx={{ fontWeight: 700, color: '#f8fafc' }}>
-              HP Smart Tank 589
-            </Typography>
-          </Stack>
-          <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block' }}>
-            Active Connection: {agentStatus?.port || 'USB001'} (USB Priority)
-          </Typography>
-          <Typography variant="caption" sx={{ color: agentStatus?.connected ? '#34d399' : '#f87171', fontWeight: 600 }}>
-            Agent: {agentStatus?.connected ? 'Online & Spooling' : 'Disconnected / Offline'}
-          </Typography>
-        </Box>
+        {drawerContent}
       </Drawer>
 
       {/* Main Content Area */}
-      <Box component="main" sx={{ flexGrow: 1, p: 3, bgcolor: '#f8fafc', minHeight: '100vh' }}>
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: { xs: 1.5, sm: 2, md: 3 },
+          bgcolor: '#f8fafc',
+          minHeight: '100vh',
+          width: { xs: '100%', md: `calc(100% - ${DRAWER_WIDTH}px)` },
+          overflowX: 'hidden'
+        }}
+      >
         {/* Top Header */}
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
-          <Box>
-            <Typography variant="h5" sx={{ fontWeight: 800, color: '#0f172a' }}>
-              {activeTab === 'overview' && 'Dashboard Overview'}
-              {activeTab === 'documents' && 'Document Printing & Duplex Control'}
-              {activeTab === 'photos' && 'Photo Printing Engine'}
-              {activeTab === 'scans' && 'HP Flatbed Scanner Console'}
-              {activeTab === 'printers' && 'Printer Hardware & Spooler Management'}
-              {activeTab === 'paper' && 'Paper Profiles & Tray Inventory'}
-              {activeTab === 'settings' && 'Pricing Matrix & Hardware Settings'}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              HP Smart Tank 589 Native GDI+ Spooler • Real-Time Synchronization
-            </Typography>
-          </Box>
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            <IconButton
+              color="inherit"
+              edge="start"
+              onClick={() => setMobileOpen(true)}
+              sx={{ display: { md: 'none' }, bgcolor: '#e2e8f0', color: '#0f172a' }}
+            >
+              <Menu size={20} />
+            </IconButton>
+            <Box>
+              <Typography variant="h5" sx={{ fontWeight: 800, color: '#0f172a', fontSize: { xs: '1.15rem', sm: '1.35rem', md: '1.5rem' } }}>
+                {activeTab === 'overview' && 'Dashboard Overview'}
+                {activeTab === 'documents' && 'Document Printing & Duplex Control'}
+                {activeTab === 'photos' && 'Photo Printing Engine'}
+                {activeTab === 'scans' && 'HP Flatbed Scanner Console'}
+                {activeTab === 'printers' && 'Printer Hardware & Spooler Management'}
+                {activeTab === 'paper' && 'Paper Profiles & Tray Inventory'}
+                {activeTab === 'settings' && 'Pricing Matrix & Hardware Settings'}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                HP Smart Tank 589 Native GDI+ Spooler • Real-Time Synchronization
+              </Typography>
+            </Box>
+          </Stack>
           <Button
             variant="outlined"
             size="small"
@@ -535,21 +603,55 @@ export function App() {
                                 <TableCell sx={{ fontWeight: 700 }}>₹{doc.calculatedPrice.toFixed(2)}</TableCell>
                                 <TableCell align="right">
                                   <Stack direction="row" spacing={0.5} justifyContent="flex-end" alignItems="center">
-                                    {doc.status === 'SUBMITTED' ? (
-                                      <Button size="small" variant="contained" onClick={() => handleDocAction(doc.id, 'APPROVE')}>
-                                        Approve & Print
-                                      </Button>
-                                    ) : doc.sides === 'MANUAL_DUPLEX' ? (
-                                      <Button size="small" variant="outlined" color="primary" onClick={() => setDuplexModalOrder(doc)}>
-                                        Duplex Console
-                                      </Button>
+                                    {doc.sides === 'MANUAL_DUPLEX' ? (
+                                      <>
+                                        {doc.duplexJob?.stage === 'AWAITING_PAPER_REVERSAL' || (doc as any).duplexStage === 'AWAITING_PAPER_REVERSAL' ? (
+                                          <Button
+                                            size="small"
+                                            variant="contained"
+                                            sx={{ bgcolor: '#d97706', '&:hover': { bgcolor: '#b45309' }, fontSize: '0.75rem', whiteSpace: 'nowrap' }}
+                                            onClick={() => handleDuplexStep(doc.id, 'PAPER_REVERSAL_CONFIRMED')}
+                                          >
+                                            🔄 2. Page Reversed (Confirm)
+                                          </Button>
+                                        ) : doc.duplexJob?.stage === 'PAPER_REVERSAL_CONFIRMED' || doc.duplexJob?.stage === 'PRINTING_SECOND_SIDE' ? (
+                                          <Button
+                                            size="small"
+                                            variant="contained"
+                                            color="info"
+                                            sx={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}
+                                            onClick={() => handleDuplexStep(doc.id, 'PRINTING_SECOND_SIDE')}
+                                          >
+                                            ▶ 3. Print Other Side
+                                          </Button>
+                                        ) : doc.status === 'COMPLETED' || doc.duplexJob?.stage === 'COMPLETED' ? (
+                                          <Chip size="small" label="Duplex Complete" color="success" />
+                                        ) : (
+                                          <Button
+                                            size="small"
+                                            variant="contained"
+                                            color="primary"
+                                            sx={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}
+                                            onClick={() => handleDuplexStep(doc.id, 'PRINTING_FIRST_SIDE')}
+                                          >
+                                            ▶ 1. Print Odd Pages
+                                          </Button>
+                                        )}
+                                      </>
                                     ) : (
-                                      <Button size="small" variant="outlined" onClick={() => handleDocAction(doc.id, 'COMPLETE')}>
+                                      doc.status === 'SUBMITTED' ? (
+                                        <Button size="small" variant="contained" onClick={() => handleDocAction(doc.id, 'APPROVE')}>
+                                          Approve & Print
+                                        </Button>
+                                      ) : null
+                                    )}
+                                    {doc.status !== 'COMPLETED' && doc.status !== 'REJECTED' && (
+                                      <Button size="small" variant="outlined" color="success" onClick={() => handleDocAction(doc.id, 'COMPLETE')}>
                                         Complete
                                       </Button>
                                     )}
                                     <Tooltip title="Configure Print Layout & Settings">
-                                      <IconButton size="small" onClick={() => handleOpenSettings(doc)} sx={{ border: '1px solid #cbd5e1' }}>
+                                      <IconButton size="small" onClick={() => handleOpenSettings(doc)} sx={{ border: '1px solid #cbd5e1', ml: 0.5 }}>
                                         <Settings size={16} />
                                       </IconButton>
                                     </Tooltip>
@@ -681,32 +783,59 @@ export function App() {
                         <TableCell sx={{ fontWeight: 700 }}>₹{doc.calculatedPrice.toFixed(2)}</TableCell>
                         <TableCell align="right">
                           <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
-                            {doc.status === 'SUBMITTED' && (
+                            {doc.sides === 'MANUAL_DUPLEX' ? (
                               <>
-                                <Button size="small" variant="contained" color="primary" onClick={() => handleDocAction(doc.id, 'APPROVE')}>
-                                  Approve & Print
-                                </Button>
-                                <Button size="small" variant="outlined" color="error" onClick={() => handleDocAction(doc.id, 'REJECT')}>
-                                  Reject
-                                </Button>
+                                {doc.duplexJob?.stage === 'AWAITING_PAPER_REVERSAL' || (doc as any).duplexStage === 'AWAITING_PAPER_REVERSAL' ? (
+                                  <Button
+                                    size="small"
+                                    variant="contained"
+                                    sx={{ bgcolor: '#d97706', '&:hover': { bgcolor: '#b45309' }, whiteSpace: 'nowrap' }}
+                                    onClick={() => handleDuplexStep(doc.id, 'PAPER_REVERSAL_CONFIRMED')}
+                                  >
+                                    🔄 2. Page Reversed (Confirm)
+                                  </Button>
+                                ) : doc.duplexJob?.stage === 'PAPER_REVERSAL_CONFIRMED' || doc.duplexJob?.stage === 'PRINTING_SECOND_SIDE' ? (
+                                  <Button
+                                    size="small"
+                                    variant="contained"
+                                    color="info"
+                                    sx={{ whiteSpace: 'nowrap' }}
+                                    onClick={() => handleDuplexStep(doc.id, 'PRINTING_SECOND_SIDE')}
+                                  >
+                                    ▶ 3. Print Other Side
+                                  </Button>
+                                ) : doc.status === 'COMPLETED' || doc.duplexJob?.stage === 'COMPLETED' ? (
+                                  <Chip size="small" label="Duplex Complete" color="success" />
+                                ) : (
+                                  <Button
+                                    size="small"
+                                    variant="contained"
+                                    color="primary"
+                                    sx={{ whiteSpace: 'nowrap' }}
+                                    onClick={() => handleDuplexStep(doc.id, 'PRINTING_FIRST_SIDE')}
+                                  >
+                                    ▶ 1. Print Odd Pages
+                                  </Button>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                {doc.status === 'SUBMITTED' && (
+                                  <Button size="small" variant="contained" color="primary" onClick={() => handleDocAction(doc.id, 'APPROVE')}>
+                                    Approve & Print
+                                  </Button>
+                                )}
+                                {doc.status === 'APPROVED' && (
+                                  <Button size="small" variant="contained" color="success" onClick={() => handleDocAction(doc.id, 'PRINTING')}>
+                                    Spool to HP 589
+                                  </Button>
+                                )}
                               </>
                             )}
 
-                            {doc.status === 'APPROVED' && doc.sides === 'MANUAL_DUPLEX' && (
-                              <Button size="small" variant="contained" color="secondary" onClick={() => setDuplexModalOrder(doc)}>
-                                Duplex Console
-                              </Button>
-                            )}
-
-                            {doc.status === 'APPROVED' && doc.sides === 'SINGLE' && (
-                              <Button size="small" variant="contained" color="success" onClick={() => handleDocAction(doc.id, 'PRINTING')}>
-                                Spool to HP 589
-                              </Button>
-                            )}
-
-                            {doc.sides === 'MANUAL_DUPLEX' && doc.status !== 'SUBMITTED' && (
-                              <Button size="small" variant="outlined" onClick={() => setDuplexModalOrder(doc)}>
-                                Duplex Progress
+                            {doc.status === 'SUBMITTED' && (
+                              <Button size="small" variant="outlined" color="error" onClick={() => handleDocAction(doc.id, 'REJECT')}>
+                                Reject
                               </Button>
                             )}
 
@@ -717,7 +846,7 @@ export function App() {
                             )}
 
                             <Tooltip title="Configure DPI, N-Up, Scale, Orientation">
-                              <IconButton size="small" onClick={() => handleOpenSettings(doc)} sx={{ border: '1px solid #cbd5e1' }}>
+                              <IconButton size="small" onClick={() => handleOpenSettings(doc)} sx={{ border: '1px solid #cbd5e1', ml: 0.5 }}>
                                 <Settings size={16} />
                               </IconButton>
                             </Tooltip>
@@ -1251,319 +1380,561 @@ export function App() {
       </Box>
 
       {/* PRINT LAYOUT & ADVANCED SETTINGS MODAL WITH INTERACTIVE PREVIEW */}
-      {settingsModalOrder && (
-        <Dialog open={true} maxWidth="md" fullWidth onClose={() => setSettingsModalOrder(null)}>
-          <DialogTitle sx={{ fontWeight: 800, borderBottom: '1px solid #e2e8f0', pb: 1.5 }}>
-            ⚙️ Print Layout & Hardware Settings — Order #{settingsModalOrder.orderNumber}
-          </DialogTitle>
-          <DialogContent sx={{ p: 3 }}>
-            {saveSuccessMsg && (
-              <Alert severity="success" sx={{ mb: 2 }}>
-                {saveSuccessMsg}
-              </Alert>
-            )}
+      {settingsModalOrder && (() => {
+        const isScan = 'format' in settingsModalOrder || (settingsModalOrder as any).serviceType === 'SCAN';
+        const isPhoto = !isScan && ((settingsModalOrder as any).images !== undefined || (settingsModalOrder as any).paperType?.includes('PHOTO'));
+        const isPassport = isPhoto && ((settingsModalOrder as any).photosPerSheet === 8 || (settingsModalOrder as any).photoType === 'PASSPORT_8');
+        const isDoc = !isScan && !isPhoto;
 
-            <Grid container spacing={3}>
-              {/* LEFT COLUMN: CONTROLS & PARAMS */}
-              <Grid item xs={12} md={6}>
-                <Stack spacing={2.5}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0369a1' }}>
-                    🎛️ Spooler & Layout Parameters
+        return (
+          <Dialog open={true} maxWidth="md" fullWidth onClose={() => setSettingsModalOrder(null)}>
+            <DialogTitle sx={{ fontWeight: 800, borderBottom: '1px solid #e2e8f0', pb: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>
+                ⚙️ {isScan ? 'Scanner Parameters' : isPassport ? 'Passport Layout (8-Up)' : isPhoto ? 'Photo Print Settings' : 'Document Layout Settings'} — Order #{settingsModalOrder.orderNumber}
+              </span>
+              <Chip
+                size="small"
+                label={isScan ? 'SCAN' : isPassport ? 'PASSPORT 8' : isPhoto ? 'PHOTO' : (settingsModalOrder as any).sides === 'MANUAL_DUPLEX' ? 'DUPLEX' : 'DOCUMENT'}
+                sx={{
+                  bgcolor: isScan ? '#ede9fe' : isPassport ? '#e0f2fe' : isPhoto ? '#d1fae5' : '#f1f5f9',
+                  color: isScan ? '#6b21a8' : isPassport ? '#0369a1' : isPhoto ? '#047857' : '#334155',
+                  fontWeight: 800
+                }}
+              />
+            </DialogTitle>
+            <DialogContent sx={{ p: 3 }}>
+              {saveSuccessMsg && (
+                <Alert severity="success" sx={{ mb: 2 }}>
+                  {saveSuccessMsg}
+                </Alert>
+              )}
+
+              <Grid container spacing={3}>
+                {/* LEFT COLUMN: CONTROLS & PARAMS */}
+                <Grid item xs={12} md={6}>
+                  <Stack spacing={2.5}>
+                    {/* ===== 1. SCANNER SERVICE ONLY ===== */}
+                    {isScan && (
+                      <>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#7c3aed' }}>
+                          🔍 Flatbed Scanner Acquisition Controls
+                        </Typography>
+
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Optical Scan Resolution (DPI)</InputLabel>
+                          <Select
+                            value={customSettings.dpi}
+                            label="Optical Scan Resolution (DPI)"
+                            onChange={(e) => setCustomSettings({ ...customSettings, dpi: Number(e.target.value) })}
+                          >
+                            <MenuItem value={150}>150 DPI (Fast / Compact File)</MenuItem>
+                            <MenuItem value={300}>300 DPI (Standard Official Quality)</MenuItem>
+                            <MenuItem value={600}>600 DPI (High Resolution Archival)</MenuItem>
+                          </Select>
+                        </FormControl>
+
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Scan Color Mode</InputLabel>
+                          <Select
+                            value={customSettings.colorMode}
+                            label="Scan Color Mode"
+                            onChange={(e) => setCustomSettings({ ...customSettings, colorMode: e.target.value as any })}
+                          >
+                            <MenuItem value="COLOR">Full Color (24-bit RGB)</MenuItem>
+                            <MenuItem value="BW">Grayscale (8-bit)</MenuItem>
+                          </Select>
+                        </FormControl>
+
+                        <Alert severity="info" sx={{ fontSize: '0.8rem', bgcolor: '#f5f3ff', border: '1px solid #ddd6fe' }}>
+                          ℹ️ Document paper sizes, manual duplex, and N-up options are hidden because they do not apply to scanner acquisition.
+                        </Alert>
+                      </>
+                    )}
+
+                    {/* ===== 2. PASSPORT 8-COPIES ONLY ===== */}
+                    {isPassport && (
+                      <>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0369a1' }}>
+                          🛂 Passport Photos (8-up Sheet Layout)
+                        </Typography>
+
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Paper Profile</InputLabel>
+                          <Select
+                            value="PHOTO_GLOSSY_4X6"
+                            label="Paper Profile"
+                            disabled
+                          >
+                            <MenuItem value="PHOTO_GLOSSY_4X6">HP Glossy Photo Paper (4 × 6 inch) [Locked]</MenuItem>
+                          </Select>
+                        </FormControl>
+
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Print Resolution (DPI)</InputLabel>
+                          <Select
+                            value={customSettings.dpi}
+                            label="Print Resolution (DPI)"
+                            onChange={(e) => setCustomSettings({ ...customSettings, dpi: Number(e.target.value) })}
+                          >
+                            <MenuItem value={300}>300 DPI (Standard)</MenuItem>
+                            <MenuItem value={600}>600 DPI (Recommended Studio Quality)</MenuItem>
+                            <MenuItem value={1200}>1200 DPI (Ultra Max Resolution)</MenuItem>
+                          </Select>
+                        </FormControl>
+
+                        <Box>
+                          <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', mb: 0.5 }}>
+                            Photo Framing (Aspect Ratio):
+                          </Typography>
+                          <RadioGroup
+                            row
+                            value={customSettings.fitMode || 'FIT'}
+                            onChange={(e) => setCustomSettings({ ...customSettings, fitMode: e.target.value as any })}
+                          >
+                            <FormControlLabel value="FIT" control={<Radio size="small" />} label="Fit to Paper (Preserve entire photo)" />
+                            <FormControlLabel value="CROP" control={<Radio size="small" />} label="Crop to Paper (Fill paper border-to-border)" />
+                          </RadioGroup>
+                        </Box>
+
+                        <Box sx={{ p: 1.5, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
+                          <FormControlLabel
+                            control={
+                              <Checkbox
+                                checked={customSettings.enableBorder ?? true}
+                                onChange={(e) => setCustomSettings({ ...customSettings, enableBorder: e.target.checked })}
+                                size="small"
+                                color="primary"
+                              />
+                            }
+                            label={<Typography variant="body2" sx={{ fontWeight: 700 }}>Enable Clean Margin Border (White border around photo)</Typography>}
+                          />
+                        </Box>
+
+                        <Alert severity="warning" sx={{ fontSize: '0.8rem', bgcolor: '#fffbeb', border: '1px solid #fde68a' }}>
+                          ⚠️ Please ensure 4×6 inch HP Glossy Photo Paper is inserted into the rear tray of the HP Smart Tank 589 before printing.
+                        </Alert>
+                      </>
+                    )}
+
+                    {/* ===== 3. STANDARD PHOTO PRINT ONLY ===== */}
+                    {isPhoto && !isPassport && (
+                      <>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#047857' }}>
+                          🖼️ Photo Engine Parameters
+                        </Typography>
+
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Paper Profile</InputLabel>
+                          <Select
+                            value={customSettings.paperType}
+                            label="Paper Profile"
+                            onChange={(e) => setCustomSettings({
+                              ...customSettings,
+                              paperType: e.target.value as any,
+                              paperSize: e.target.value.includes('4X6') ? '4X6' : 'A4'
+                            })}
+                          >
+                            <MenuItem value="PHOTO_GLOSSY_4X6">HP Glossy Photo Paper (4 × 6 inch)</MenuItem>
+                            <MenuItem value="PHOTO_GLOSSY_A4">HP Premium Glossy (A4 Full Sheet)</MenuItem>
+                            <MenuItem value="PHOTO_MATTE_A4">HP Matte Photo Paper (A4)</MenuItem>
+                          </Select>
+                        </FormControl>
+
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Print Resolution (DPI)</InputLabel>
+                          <Select
+                            value={customSettings.dpi}
+                            label="Print Resolution (DPI)"
+                            onChange={(e) => setCustomSettings({ ...customSettings, dpi: Number(e.target.value) })}
+                          >
+                            <MenuItem value={300}>300 DPI (Fast Print)</MenuItem>
+                            <MenuItem value={600}>600 DPI (High Glossy Quality)</MenuItem>
+                            <MenuItem value={1200}>1200 DPI (Ultra Max Resolution)</MenuItem>
+                          </Select>
+                        </FormControl>
+
+                        <Box>
+                          <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', mb: 0.5 }}>
+                            Photo Framing Mode:
+                          </Typography>
+                          <RadioGroup
+                            row
+                            value={customSettings.fitMode || 'FIT'}
+                            onChange={(e) => setCustomSettings({ ...customSettings, fitMode: e.target.value as any })}
+                          >
+                            <FormControlLabel value="FIT" control={<Radio size="small" />} label="Fit to Paper (Preserve full image)" />
+                            <FormControlLabel value="CROP" control={<Radio size="small" />} label="Crop to Paper (Fill whole sheet)" />
+                          </RadioGroup>
+                        </Box>
+
+                        <Box sx={{ p: 1.5, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
+                          <FormControlLabel
+                            control={
+                              <Checkbox
+                                checked={customSettings.enableBorder ?? false}
+                                onChange={(e) => setCustomSettings({ ...customSettings, enableBorder: e.target.checked })}
+                                size="small"
+                                color="primary"
+                              />
+                            }
+                            label={<Typography variant="body2" sx={{ fontWeight: 700 }}>Enable Clean Margin Border</Typography>}
+                          />
+                        </Box>
+                      </>
+                    )}
+
+                    {/* ===== 4. DOCUMENT PRINT ONLY ===== */}
+                    {isDoc && (
+                      <>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0369a1' }}>
+                          📄 Document Spooler &amp; Layout Controls
+                        </Typography>
+
+                        {/* DPI Resolution */}
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Print Resolution (DPI)</InputLabel>
+                          <Select
+                            value={customSettings.dpi}
+                            label="Print Resolution (DPI)"
+                            onChange={(e) => setCustomSettings({ ...customSettings, dpi: Number(e.target.value) })}
+                          >
+                            <MenuItem value={150}>150 DPI (Fast / Draft)</MenuItem>
+                            <MenuItem value={300}>300 DPI (Standard High Quality)</MenuItem>
+                            <MenuItem value={600}>600 DPI (Ultra Fine / Text Quality)</MenuItem>
+                          </Select>
+                        </FormControl>
+
+                        {/* Pages Per Sheet (N-Up) */}
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Pages Per Sheet (N-Up)</InputLabel>
+                          <Select
+                            value={customSettings.pagesPerSheet}
+                            label="Pages Per Sheet (N-Up)"
+                            onChange={(e) => setCustomSettings({ ...customSettings, pagesPerSheet: Number(e.target.value) as 1 | 2 | 4 })}
+                          >
+                            <MenuItem value={1}>1 Page Per Sheet (Standard 1-Up)</MenuItem>
+                            <MenuItem value={2}>2 Pages Per Sheet (2-Up Side-by-Side)</MenuItem>
+                            <MenuItem value={4}>4 Pages Per Sheet (4-Up 2×2 Grid)</MenuItem>
+                          </Select>
+                        </FormControl>
+
+                        {/* Page Orientation */}
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Sheet Orientation</InputLabel>
+                          <Select
+                            value={customSettings.orientation}
+                            label="Sheet Orientation"
+                            onChange={(e) => setCustomSettings({ ...customSettings, orientation: e.target.value as any })}
+                          >
+                            <MenuItem value="PORTRAIT">Portrait (Vertical)</MenuItem>
+                            <MenuItem value="LANDSCAPE">Landscape (Horizontal)</MenuItem>
+                          </Select>
+                        </FormControl>
+
+                        {/* Zoom / Scaling Slider */}
+                        <Box>
+                          <Stack direction="row" justifyContent="space-between" alignItems="center">
+                            <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                              Scaling / Zoom: {customSettings.scalePercent}%
+                            </Typography>
+                            <Button size="small" onClick={() => setCustomSettings({ ...customSettings, scalePercent: 100 })}>
+                              Reset (100%)
+                            </Button>
+                          </Stack>
+                          <Slider
+                            value={customSettings.scalePercent}
+                            min={50}
+                            max={150}
+                            step={5}
+                            valueLabelDisplay="auto"
+                            onChange={(_, val) => setCustomSettings({ ...customSettings, scalePercent: val as number })}
+                            sx={{ color: '#0284c7' }}
+                          />
+                        </Box>
+
+                        {/* Scope: One-for-All vs Current Page */}
+                        <Box>
+                          <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', mb: 0.5 }}>
+                            Apply Configuration Scope:
+                          </Typography>
+                          <RadioGroup
+                            row
+                            value={customSettings.scope}
+                            onChange={(e) => setCustomSettings({ ...customSettings, scope: e.target.value as any })}
+                          >
+                            <FormControlLabel value="ALL_PAGES" control={<Radio size="small" />} label="One-for-All (All Pages)" />
+                            <FormControlLabel value="CURRENT_PAGE" control={<Radio size="small" />} label="Current Page Only" />
+                          </RadioGroup>
+                        </Box>
+
+                        {/* Border Toggle */}
+                        <Box sx={{ p: 1.5, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
+                          <FormControlLabel
+                            control={
+                              <Checkbox
+                                checked={customSettings.enableBorder ?? false}
+                                onChange={(e) => setCustomSettings({ ...customSettings, enableBorder: e.target.checked })}
+                                size="small"
+                                color="primary"
+                              />
+                            }
+                            label={<Typography variant="body2" sx={{ fontWeight: 700 }}>Enable Page Margin Border</Typography>}
+                          />
+                        </Box>
+
+                        {/* Paper Type & Size */}
+                        <Grid container spacing={1.5}>
+                          <Grid item xs={6}>
+                            <FormControl fullWidth size="small">
+                              <InputLabel>Paper Type</InputLabel>
+                              <Select
+                                value={customSettings.paperType}
+                                label="Paper Type"
+                                onChange={(e) => setCustomSettings({ ...customSettings, paperType: e.target.value as any })}
+                              >
+                                <MenuItem value="NORMAL_A4">Plain Paper (A4)</MenuItem>
+                                <MenuItem value="PHOTO_GLOSSY_4X6">HP Glossy (4×6")</MenuItem>
+                                <MenuItem value="PHOTO_GLOSSY_A4">HP Glossy (A4)</MenuItem>
+                              </Select>
+                            </FormControl>
+                          </Grid>
+                          <Grid item xs={6}>
+                            <FormControl fullWidth size="small">
+                              <InputLabel>Paper Size</InputLabel>
+                              <Select
+                                value={customSettings.paperSize}
+                                label="Paper Size"
+                                onChange={(e) => setCustomSettings({ ...customSettings, paperSize: e.target.value as any })}
+                              >
+                                <MenuItem value="A4">A4 (210×297 mm)</MenuItem>
+                                <MenuItem value="4X6">4×6 Inch</MenuItem>
+                              </Select>
+                            </FormControl>
+                          </Grid>
+                        </Grid>
+
+                        {/* Duplex Math Breakdown Notice */}
+                        {(settingsModalOrder as any).sides === 'MANUAL_DUPLEX' && (
+                          <Box sx={{ p: 1.5, bgcolor: '#f0f9ff', borderRadius: 2, border: '1px solid #bae6fd' }}>
+                            <Typography variant="caption" sx={{ fontWeight: 700, color: '#0369a1', display: 'block' }}>
+                              Duplex N-Up Math Breakdown:
+                            </Typography>
+                            {(() => {
+                              const totalN = (settingsModalOrder as any).totalPages || 1;
+                              const k = customSettings.pagesPerSheet || 1;
+                              const perSheet = 2 * k;
+                              const sheets = Math.ceil(totalN / perSheet);
+                              return (
+                                <Typography variant="caption" sx={{ color: '#0c4a6e' }}>
+                                  • Total input pages: <strong>{totalN}</strong><br />
+                                  • Pages per sheet: <strong>{perSheet}</strong> ({k} per side)<br />
+                                  • Physical sheets required: <strong>{sheets} sheets</strong><br />
+                                  • Front pass odd sheets: 1 to {sheets}<br />
+                                  • Back pass reversed sheets: {sheets} down to 1
+                                </Typography>
+                              );
+                            })()}
+                          </Box>
+                        )}
+                      </>
+                    )}
+                  </Stack>
+                </Grid>
+
+                {/* RIGHT COLUMN: INTERACTIVE SHEET VISUALIZER */}
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a', mb: 1 }}>
+                    👁️ Live Physical Sheet Preview
                   </Typography>
 
-                  {/* DPI Resolution */}
-                  <FormControl fullWidth size="small">
-                    <InputLabel>Print Resolution (DPI)</InputLabel>
-                    <Select
-                      value={customSettings.dpi}
-                      label="Print Resolution (DPI)"
-                      onChange={(e) => setCustomSettings({ ...customSettings, dpi: Number(e.target.value) })}
-                    >
-                      <MenuItem value={150}>150 DPI (Fast / Draft)</MenuItem>
-                      <MenuItem value={300}>300 DPI (Standard High Quality)</MenuItem>
-                      <MenuItem value={600}>600 DPI (Ultra Fine / Photo Quality)</MenuItem>
-                    </Select>
-                  </FormControl>
-
-                  {/* Pages Per Sheet (N-Up) */}
-                  <FormControl fullWidth size="small">
-                    <InputLabel>Pages Per Sheet (N-Up)</InputLabel>
-                    <Select
-                      value={customSettings.pagesPerSheet}
-                      label="Pages Per Sheet (N-Up)"
-                      onChange={(e) => setCustomSettings({ ...customSettings, pagesPerSheet: Number(e.target.value) as 1 | 2 | 4 })}
-                    >
-                      <MenuItem value={1}>1 Page Per Sheet (Standard 1-Up)</MenuItem>
-                      <MenuItem value={2}>2 Pages Per Sheet (2-Up Side-by-Side)</MenuItem>
-                      <MenuItem value={4}>4 Pages Per Sheet (4-Up 2×2 Grid)</MenuItem>
-                    </Select>
-                  </FormControl>
-
-                  {/* Page Orientation */}
-                  <FormControl fullWidth size="small">
-                    <InputLabel>Sheet Orientation</InputLabel>
-                    <Select
-                      value={customSettings.orientation}
-                      label="Sheet Orientation"
-                      onChange={(e) => setCustomSettings({ ...customSettings, orientation: e.target.value as any })}
-                    >
-                      <MenuItem value="PORTRAIT">Portrait (Vertical)</MenuItem>
-                      <MenuItem value="LANDSCAPE">Landscape (Horizontal)</MenuItem>
-                    </Select>
-                  </FormControl>
-
-                  {/* Zoom / Scaling Slider */}
-                  <Box>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                      <Typography variant="caption" sx={{ fontWeight: 700 }}>
-                        Scaling / Zoom: {customSettings.scalePercent}%
-                      </Typography>
-                      <Button size="small" onClick={() => setCustomSettings({ ...customSettings, scalePercent: 100 })}>
-                        Reset (100%)
+                  {/* Duplex Pass View Switcher */}
+                  {isDoc && (settingsModalOrder as any).sides === 'MANUAL_DUPLEX' && (
+                    <Stack direction="row" spacing={1} sx={{ mb: 1.5 }}>
+                      <Button
+                        size="small"
+                        variant={duplexPreviewPass === 'FRONT' ? 'contained' : 'outlined'}
+                        onClick={() => setDuplexPreviewPass('FRONT')}
+                        sx={{ fontSize: '0.75rem', py: 0.5 }}
+                      >
+                        Front Side (Odd Pass)
+                      </Button>
+                      <Button
+                        size="small"
+                        variant={duplexPreviewPass === 'BACK' ? 'contained' : 'outlined'}
+                        onClick={() => setDuplexPreviewPass('BACK')}
+                        sx={{ fontSize: '0.75rem', py: 0.5 }}
+                      >
+                        Back Side (Even Reverse)
                       </Button>
                     </Stack>
-                    <Slider
-                      value={customSettings.scalePercent}
-                      min={50}
-                      max={150}
-                      step={5}
-                      valueLabelDisplay="auto"
-                      onChange={(_, val) => setCustomSettings({ ...customSettings, scalePercent: val as number })}
-                      sx={{ color: '#0284c7' }}
-                    />
-                  </Box>
-
-                  {/* Scope: One-for-All vs Current Page */}
-                  <Box>
-                    <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', mb: 0.5 }}>
-                      Apply Configuration Scope:
-                    </Typography>
-                    <RadioGroup
-                      row
-                      value={customSettings.scope}
-                      onChange={(e) => setCustomSettings({ ...customSettings, scope: e.target.value as any })}
-                    >
-                      <FormControlLabel value="ALL_PAGES" control={<Radio size="small" />} label="One-for-All (All Pages)" />
-                      <FormControlLabel value="CURRENT_PAGE" control={<Radio size="small" />} label="Current Page Only" />
-                    </RadioGroup>
-                  </Box>
-
-                  {/* Paper Type & Size */}
-                  <Grid container spacing={1.5}>
-                    <Grid item xs={6}>
-                      <FormControl fullWidth size="small">
-                        <InputLabel>Paper Type</InputLabel>
-                        <Select
-                          value={customSettings.paperType}
-                          label="Paper Type"
-                          onChange={(e) => setCustomSettings({ ...customSettings, paperType: e.target.value as any })}
-                        >
-                          <MenuItem value="NORMAL_A4">Plain Paper (A4)</MenuItem>
-                          <MenuItem value="PHOTO_GLOSSY_4X6">HP Glossy (4×6")</MenuItem>
-                          <MenuItem value="PHOTO_GLOSSY_A4">HP Glossy (A4)</MenuItem>
-                          <MenuItem value="PHOTO_MATTE_A4">HP Matte (A4)</MenuItem>
-                        </Select>
-                      </FormControl>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <FormControl fullWidth size="small">
-                        <InputLabel>Paper Size</InputLabel>
-                        <Select
-                          value={customSettings.paperSize}
-                          label="Paper Size"
-                          onChange={(e) => setCustomSettings({ ...customSettings, paperSize: e.target.value as any })}
-                        >
-                          <MenuItem value="A4">A4 (210×297 mm)</MenuItem>
-                          <MenuItem value="4X6">4×6 Inch (Photo)</MenuItem>
-                        </Select>
-                      </FormControl>
-                    </Grid>
-                  </Grid>
-
-                  {/* Duplex Math Breakdown Notice */}
-                  {(settingsModalOrder as any).sides === 'MANUAL_DUPLEX' && (
-                    <Box sx={{ p: 1.5, bgcolor: '#f0f9ff', borderRadius: 2, border: '1px solid #bae6fd' }}>
-                      <Typography variant="caption" sx={{ fontWeight: 700, color: '#0369a1', display: 'block' }}>
-                        Duplex N-Up Math Breakdown:
-                      </Typography>
-                      {(() => {
-                        const totalN = (settingsModalOrder as any).totalPages || 1;
-                        const k = customSettings.pagesPerSheet || 1;
-                        const perSheet = 2 * k;
-                        const sheets = Math.ceil(totalN / perSheet);
-                        return (
-                          <Typography variant="caption" sx={{ color: '#0c4a6e' }}>
-                            • Total input pages: <strong>{totalN}</strong><br />
-                            • Pages per sheet: <strong>{perSheet}</strong> ({k} per side)<br />
-                            • Physical sheets required: <strong>{sheets} sheets</strong><br />
-                            • Front pass odd sheets: 1 to {sheets}<br />
-                            • Back pass reversed sheets: {sheets} down to 1
-                          </Typography>
-                        );
-                      })()}
-                    </Box>
                   )}
-                </Stack>
-              </Grid>
 
-              {/* RIGHT COLUMN: INTERACTIVE SHEET VISUALIZER */}
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a', mb: 1 }}>
-                  👁️ Live Physical Sheet Preview
-                </Typography>
-
-                {/* Duplex Pass View Switcher */}
-                {(settingsModalOrder as any).sides === 'MANUAL_DUPLEX' && (
-                  <Stack direction="row" spacing={1} sx={{ mb: 1.5 }}>
-                    <Button
-                      size="small"
-                      variant={duplexPreviewPass === 'FRONT' ? 'contained' : 'outlined'}
-                      onClick={() => setDuplexPreviewPass('FRONT')}
-                      sx={{ fontSize: '0.75rem', py: 0.5 }}
-                    >
-                      Front Side (Odd Pass)
-                    </Button>
-                    <Button
-                      size="small"
-                      variant={duplexPreviewPass === 'BACK' ? 'contained' : 'outlined'}
-                      onClick={() => setDuplexPreviewPass('BACK')}
-                      sx={{ fontSize: '0.75rem', py: 0.5 }}
-                    >
-                      Back Side (Even Reverse)
-                    </Button>
-                  </Stack>
-                )}
-
-                {/* SHEET CONTAINER */}
-                <Box
-                  sx={{
-                    width: '100%',
-                    height: 340,
-                    bgcolor: '#334155',
-                    borderRadius: 2,
-                    p: 2,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    overflow: 'hidden'
-                  }}
-                >
-                  {/* The Physical Paper Sheet */}
+                  {/* SHEET CONTAINER */}
                   <Box
                     sx={{
-                      width: customSettings.orientation === 'PORTRAIT' ? '210px' : '290px',
-                      height: customSettings.orientation === 'PORTRAIT' ? '290px' : '210px',
-                      bgcolor: 'white',
-                      borderRadius: 1,
-                      boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-                      border: '1px dashed #94a3b8',
-                      position: 'relative',
-                      p: 1.5,
+                      width: '100%',
+                      height: 340,
+                      bgcolor: '#334155',
+                      borderRadius: 2,
+                      p: 2,
                       display: 'flex',
-                      flexDirection: 'column',
-                      transition: 'all 0.3s ease'
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden'
                     }}
                   >
-                    {/* Header sheet badge */}
-                    <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
-                      <Typography variant="caption" sx={{ fontSize: '9px', fontWeight: 700, color: '#64748b' }}>
-                        HP Smart Tank 589 • {customSettings.paperSize}
-                      </Typography>
-                      <Typography variant="caption" sx={{ fontSize: '9px', fontWeight: 800, color: '#0284c7' }}>
-                        {customSettings.dpi} DPI
-                      </Typography>
-                    </Stack>
-
-                    {/* Page Content Wireframe according to N-Up */}
+                    {/* The Physical Paper Sheet */}
                     <Box
                       sx={{
-                        flexGrow: 1,
-                        display: 'grid',
-                        gap: 1,
-                        gridTemplateColumns:
-                          customSettings.pagesPerSheet === 1
-                            ? '1fr'
-                            : customSettings.pagesPerSheet === 2
-                            ? customSettings.orientation === 'LANDSCAPE' ? '1fr 1fr' : '1fr'
-                            : '1fr 1fr',
-                        gridTemplateRows:
-                          customSettings.pagesPerSheet === 1
-                            ? '1fr'
-                            : customSettings.pagesPerSheet === 2
-                            ? customSettings.orientation === 'LANDSCAPE' ? '1fr' : '1fr 1fr'
-                            : '1fr 1fr',
-                        transform: `scale(${customSettings.scalePercent / 100})`,
-                        transformOrigin: 'center center',
-                        transition: 'transform 0.2s ease'
+                        width: isPassport || customSettings.orientation === 'LANDSCAPE' ? '290px' : '210px',
+                        height: isPassport || customSettings.orientation === 'LANDSCAPE' ? '200px' : '290px',
+                        bgcolor: 'white',
+                        borderRadius: 1,
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+                        border: customSettings.enableBorder ? '2px solid #0284c7' : '1px dashed #94a3b8',
+                        position: 'relative',
+                        p: 1.5,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        transition: 'all 0.3s ease'
                       }}
                     >
-                      {Array.from({ length: customSettings.pagesPerSheet }).map((_, slotIdx) => {
-                        const pageNum = duplexPreviewPass === 'FRONT' ? slotIdx + 1 : slotIdx + customSettings.pagesPerSheet + 1;
-                        return (
-                          <Box
-                            key={slotIdx}
-                            sx={{
-                              border: '1px solid #cbd5e1',
-                              borderRadius: 1,
-                              bgcolor: '#f8fafc',
-                              p: 1,
-                              display: 'flex',
-                              flexDirection: 'column',
-                              justifyContent: 'space-between'
-                            }}
-                          >
-                            <Stack direction="row" justifyContent="space-between" alignItems="center">
-                              <Chip
-                                size="small"
-                                label={`Page ${pageNum}`}
-                                sx={{ height: 16, fontSize: '9px', fontWeight: 700, bgcolor: '#0284c7', color: 'white' }}
-                              />
-                              <Typography variant="caption" sx={{ fontSize: '8px', color: '#94a3b8' }}>
-                                {customSettings.colorMode}
+                      {/* Header sheet badge */}
+                      <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                        <Typography variant="caption" sx={{ fontSize: '9px', fontWeight: 700, color: '#64748b' }}>
+                          HP Smart Tank 589 • {isPassport ? '4×6 Photo Paper' : customSettings.paperSize}
+                        </Typography>
+                        <Typography variant="caption" sx={{ fontSize: '9px', fontWeight: 800, color: '#0284c7' }}>
+                          {customSettings.dpi} DPI
+                        </Typography>
+                      </Stack>
+
+                      {/* Passport 8-Up Visualization */}
+                      {isPassport ? (
+                        <Box sx={{ flexGrow: 1, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gridTemplateRows: 'repeat(2, 1fr)', gap: 0.8, p: 0.5 }}>
+                          {Array.from({ length: 8 }).map((_, idx) => (
+                            <Box
+                              key={idx}
+                              sx={{
+                                border: '1.5px solid #0284c7',
+                                bgcolor: '#e0f2fe',
+                                borderRadius: 0.5,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                p: 0.2
+                              }}
+                            >
+                              <Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: '#0284c7', mb: 0.2 }} />
+                              <Typography variant="caption" sx={{ fontSize: '7px', fontWeight: 700, color: '#0369a1' }}>
+                                #{idx + 1}
                               </Typography>
-                            </Stack>
+                            </Box>
+                          ))}
+                        </Box>
+                      ) : isScan ? (
+                        <Box sx={{ flexGrow: 1, border: '2px dashed #7c3aed', bgcolor: '#faf5ff', borderRadius: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                          <Scan size={32} color="#7c3aed" />
+                          <Typography variant="caption" sx={{ fontWeight: 800, color: '#6b21a8', mt: 1 }}>
+                            HP 589 Flatbed Glass Platen
+                          </Typography>
+                          <Typography variant="caption" sx={{ fontSize: '9px', color: '#9333ea' }}>
+                            {customSettings.dpi} DPI • {customSettings.colorMode}
+                          </Typography>
+                        </Box>
+                      ) : (
+                        /* Document Wireframe according to N-Up */
+                        <Box
+                          sx={{
+                            flexGrow: 1,
+                            display: 'grid',
+                            gap: 1,
+                            gridTemplateColumns:
+                              customSettings.pagesPerSheet === 1
+                                ? '1fr'
+                                : customSettings.pagesPerSheet === 2
+                                ? customSettings.orientation === 'LANDSCAPE' ? '1fr 1fr' : '1fr'
+                                : '1fr 1fr',
+                            gridTemplateRows:
+                              customSettings.pagesPerSheet === 1
+                                ? '1fr'
+                                : customSettings.pagesPerSheet === 2
+                                ? customSettings.orientation === 'LANDSCAPE' ? '1fr' : '1fr 1fr'
+                                : '1fr 1fr',
+                            transform: `scale(${customSettings.scalePercent / 100})`,
+                            transformOrigin: 'center center',
+                            transition: 'transform 0.2s ease'
+                          }}
+                        >
+                          {Array.from({ length: customSettings.pagesPerSheet }).map((_, slotIdx) => {
+                            const pageNum = duplexPreviewPass === 'FRONT' ? slotIdx + 1 : slotIdx + customSettings.pagesPerSheet + 1;
+                            return (
+                              <Box
+                                key={slotIdx}
+                                sx={{
+                                  border: customSettings.enableBorder ? '1.5px solid #2563eb' : '1px solid #cbd5e1',
+                                  borderRadius: 1,
+                                  bgcolor: '#f8fafc',
+                                  p: 1,
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  justifyContent: 'space-between'
+                                }}
+                              >
+                                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                  <Chip
+                                    size="small"
+                                    label={`Page ${pageNum}`}
+                                    sx={{ height: 16, fontSize: '9px', fontWeight: 700, bgcolor: '#0284c7', color: 'white' }}
+                                  />
+                                  <Typography variant="caption" sx={{ fontSize: '8px', color: '#94a3b8' }}>
+                                    {customSettings.colorMode}
+                                  </Typography>
+                                </Stack>
 
-                            {/* Simulated text lines */}
-                            <Stack spacing={0.5} sx={{ my: 'auto' }}>
-                              <Box sx={{ width: '85%', height: 4, bgcolor: '#94a3b8', borderRadius: 0.5 }} />
-                              <Box sx={{ width: '95%', height: 3, bgcolor: '#cbd5e1', borderRadius: 0.5 }} />
-                              <Box sx={{ width: '70%', height: 3, bgcolor: '#cbd5e1', borderRadius: 0.5 }} />
-                              <Box sx={{ width: '80%', height: 3, bgcolor: '#cbd5e1', borderRadius: 0.5 }} />
-                            </Stack>
+                                <Stack spacing={0.5} sx={{ my: 'auto' }}>
+                                  <Box sx={{ width: '85%', height: 4, bgcolor: '#94a3b8', borderRadius: 0.5 }} />
+                                  <Box sx={{ width: '95%', height: 3, bgcolor: '#cbd5e1', borderRadius: 0.5 }} />
+                                  <Box sx={{ width: '70%', height: 3, bgcolor: '#cbd5e1', borderRadius: 0.5 }} />
+                                  <Box sx={{ width: '80%', height: 3, bgcolor: '#cbd5e1', borderRadius: 0.5 }} />
+                                </Stack>
 
-                            <Typography variant="caption" sx={{ fontSize: '8px', color: '#64748b', textAlign: 'center' }}>
-                              {customSettings.scalePercent}% Scale
-                            </Typography>
-                          </Box>
-                        );
-                      })}
+                                <Typography variant="caption" sx={{ fontSize: '8px', color: '#64748b', textAlign: 'center' }}>
+                                  {customSettings.scalePercent}% Scale
+                                </Typography>
+                              </Box>
+                            );
+                          })}
+                        </Box>
+                      )}
                     </Box>
                   </Box>
-                </Box>
 
-                {/* Preview Metadata Footer */}
-                <Box sx={{ mt: 1.5, p: 1.5, bgcolor: '#f1f5f9', borderRadius: 2 }}>
-                  <Typography variant="caption" sx={{ fontWeight: 600, color: '#334155', display: 'block' }}>
-                    📐 Sheet Dimension: {customSettings.orientation === 'PORTRAIT' ? '210 × 297 mm' : '297 × 210 mm'} • Effective Margin: 5mm Printable Area
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: '#64748b' }}>
-                    GDI+ Spooler applies crisp vector and high-DPI rasterization directly to the HP Smart Tank 589 spooler.
-                  </Typography>
-                </Box>
+                  {/* Preview Metadata Footer */}
+                  <Box sx={{ mt: 1.5, p: 1.5, bgcolor: '#f1f5f9', borderRadius: 2 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 600, color: '#334155', display: 'block' }}>
+                      📐 Layout: {isPassport ? '4×6 HP Glossy (8-up)' : customSettings.orientation === 'PORTRAIT' ? '210 × 297 mm (Portrait)' : '297 × 210 mm (Landscape)'} • {customSettings.enableBorder ? 'White Margin Border ON' : 'Borderless/Edge-to-edge'}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#64748b' }}>
+                      Native GDI+ Spooler sends direct clean vector instructions to the HP Smart Tank 589 spooler.
+                    </Typography>
+                  </Box>
+                </Grid>
               </Grid>
-            </Grid>
-          </DialogContent>
-          <DialogActions sx={{ p: 2, borderTop: '1px solid #e2e8f0' }}>
-            <Button onClick={() => setSettingsModalOrder(null)}>Cancel</Button>
-            <Button variant="outlined" color="primary" onClick={handleSaveSettingsOnly}>
-              Save Settings Only
-            </Button>
-            <Button variant="contained" color="success" onClick={handleSaveAndPrint}>
-              Save & Print to HP 589
-            </Button>
-          </DialogActions>
-        </Dialog>
-      )}
+            </DialogContent>
+            <DialogActions sx={{ p: 2, borderTop: '1px solid #e2e8f0' }}>
+              <Button onClick={() => setSettingsModalOrder(null)}>Cancel</Button>
+              <Button variant="outlined" color="primary" onClick={handleSaveSettingsOnly}>
+                Save Settings Only
+              </Button>
+              <Button variant="contained" color="success" onClick={handleSaveAndPrint}>
+                Save & Print to HP 589
+              </Button>
+            </DialogActions>
+          </Dialog>
+        );
+      })()}
 
       {/* FULL RESOLUTION SCAN IMAGE PREVIEW MODAL */}
       {previewScanImage && (

@@ -276,9 +276,92 @@ namespace SmartXeroxHub.Agent
 
                 if (order.IsDuplex)
                 {
-                    // "📑 Approve & Duplex"
-                    OpenDuplexWizard(order);
-                    return;
+                    // Duplex multi-step execution right inside the order row
+                    if (order.DuplexStage == "AWAITING_PAPER_REVERSAL" || order.Status == "AWAITING_PAPER_REVERSAL")
+                    {
+                        // Step 2 & 3: Confirm paper reversal and spool even pages (reverse pass)
+                        var res = MessageBox.Show(
+                            $"⚠️ DUPLEX STEP 2 — PAPER REVERSAL CONFIRMATION:\n\nOrder '{order.OrderNumber}':\n1. Did you collect the printed odd sheets from the front output tray?\n2. Did you flip the stack horizontally (keeping Front Top at Back Top)?\n3. Did you insert the flipped stack into the rear tray of HP Smart Tank 589?\n\nClick 'Yes' to immediately spool the other side (even pages).",
+                            "Confirm Paper Reversal for Step 3",
+                            MessageBoxButton.YesNo,
+                            MessageBoxImage.Question
+                        );
+                        if (res != MessageBoxResult.Yes) return;
+
+                        btn.IsEnabled = false;
+                        btn.Content = "⏳ Printing Other Side...";
+                        try
+                        {
+                            var duplexJob = _recoveryManager.GetActiveDuplexJob(order.Id) ?? _activeDuplexJob;
+                            if (duplexJob == null)
+                            {
+                                var localFile = await _backendSync.EnsureLocalFileAsync(order.FileUrl, order.OriginalFileName);
+                                duplexJob = _duplexProcessor.PrepareDuplexFiles(order.Id, order.OrderNumber, localFile, order.Copies, printerName, order.PrintSettings?.PagesPerSheet ?? 1, order.PrintSettings);
+                            }
+
+                            _duplexProcessor.PrintSecondSide(duplexJob);
+                            await _backendSync.UpdateDuplexStageOnBackendAsync(order.Id, "COMPLETED");
+                            await _backendSync.UpdateOrderStatusOnBackendAsync(order.Id, "DOCUMENT", "COMPLETE");
+                            order.DuplexStage = "COMPLETED";
+                            order.Status = "COMPLETE";
+
+                            MessageBox.Show(
+                                $"Duplex document '{order.OrderNumber}' printed successfully on both sides!\n\nAll {order.TotalPages} pages delivered cleanly without errors.",
+                                "Duplex Finished",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Information
+                            );
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show($"Failed to print second side: {ex.Message}", "Duplex Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        }
+                        finally
+                        {
+                            btn.IsEnabled = true;
+                            await RefreshOrdersAsync();
+                        }
+                        return;
+                    }
+                    else if (order.DuplexStage == "COMPLETED" || order.Status == "COMPLETE")
+                    {
+                        MessageBox.Show($"Duplex job '{order.OrderNumber}' has already been completed.", "Completed", MessageBoxButton.OK, MessageBoxImage.Information);
+                        return;
+                    }
+                    else
+                    {
+                        // Step 1: Spool odd pages (Front pass)
+                        btn.IsEnabled = false;
+                        btn.Content = "⏳ Printing Odd Pages...";
+                        try
+                        {
+                            var localFile = await _backendSync.EnsureLocalFileAsync(order.FileUrl, order.OriginalFileName);
+                            var duplexJob = _duplexProcessor.PrepareDuplexFiles(order.Id, order.OrderNumber, localFile, order.Copies, printerName, order.PrintSettings?.PagesPerSheet ?? 1, order.PrintSettings);
+                            _recoveryManager.TrackDuplexJob(duplexJob);
+                            _activeDuplexJob = duplexJob;
+
+                            _duplexProcessor.PrintFirstSide(duplexJob);
+                            await _backendSync.UpdateDuplexStageOnBackendAsync(order.Id, "AWAITING_PAPER_REVERSAL");
+                            order.DuplexStage = "AWAITING_PAPER_REVERSAL";
+
+                            MessageBox.Show(
+                                $"▶ Step 1 Complete: Front side odd pages sent to '{printerName}'.\n\n👉 OPERATOR ACTION REQUIRED:\n1. Collect the printed pages from output tray.\n2. Flip the paper stack horizontally (Front Top remains Back Top).\n3. Re-insert the stack into the rear tray.\n4. Click '🔄 2. Page Reversed (Confirm)' on this row.",
+                                "Step 1 Finished — Flip Paper Stack",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Information
+                            );
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show($"Failed to start duplex: {ex.Message}", "Duplex Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        }
+                        finally
+                        {
+                            btn.IsEnabled = true;
+                            await RefreshOrdersAsync();
+                        }
+                        return;
+                    }
                 }
 
                 // If Passport 8-up: prompt operator to insert 4x6 paper
@@ -321,7 +404,9 @@ namespace SmartXeroxHub.Agent
                         else
                         {
                             string orientation = order.IsPassport8 ? "LANDSCAPE" : (order.PrintSettings?.Orientation ?? "PORTRAIT");
-                            PhotoProcessor.PrintPhoto(localFile, printerName, order.PaperType, order.ColorMode, "FIT", order.OrderNumber, 100.0, orientation);
+                            string fitMode = order.PrintSettings?.FitMode ?? "FIT";
+                            bool enableBorder = order.PrintSettings?.EnableBorder ?? order.IsPassport8;
+                            PhotoProcessor.PrintPhoto(localFile, printerName, order.PaperType, order.ColorMode, fitMode, order.OrderNumber, 100.0, orientation, enableBorder);
                         }
                         MessageBox.Show($"Printed locally to '{printerName}'!", "Print Succeeded", MessageBoxButton.OK, MessageBoxImage.Information);
                     }

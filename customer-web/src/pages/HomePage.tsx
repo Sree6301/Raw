@@ -109,7 +109,7 @@ export function HomePage() {
   ];
 
   return (
-    <Container maxWidth="sm" sx={{ py: 3, pb: 8 }}>
+    <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 3, md: 4 }, pb: 8 }}>
       {/* Header Banner */}
       <Box sx={{ textAlign: 'center', mb: 3 }}>
         <Stack direction="row" spacing={1.5} justifyContent="center" alignItems="center" sx={{ mb: 1 }}>
@@ -199,52 +199,69 @@ export function HomePage() {
         )}
       </Box>
 
-      {/* Services Grid */}
-      <Stack spacing={2}>
+      {/* Services Grid (Responsive: 1 col on mobile, 2 col on tablet, 3 col on desktop) */}
+      <Grid container spacing={2}>
         {services.map((item) => (
-          <Card
-            key={item.id}
-            sx={{
-              transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-              '&:hover': {
-                transform: 'translateY(-2px)',
-                boxShadow: '0 8px 20px -4px rgba(0,0,0,0.08)'
-              }
-            }}
-          >
-            <CardActionArea onClick={() => navigate(item.route)} sx={{ p: 2 }}>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <Box
-                  sx={{
-                    width: 54,
-                    height: 54,
-                    borderRadius: 3,
-                    bgcolor: item.color,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0
-                  }}
-                >
-                  {item.icon}
-                </Box>
-                <Box sx={{ flexGrow: 1 }}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a' }}>
-                      {item.title}
-                    </Typography>
-                    <Chip size="small" label={item.tag} sx={{ fontSize: '0.75rem', fontWeight: 600 }} />
+          <Grid item xs={12} sm={6} md={4} key={item.id}>
+            <Card
+              sx={{
+                height: '100%',
+                display: 'flex',
+                borderRadius: 3,
+                transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                '&:hover': {
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 8px 20px -4px rgba(0,0,0,0.08)'
+                }
+              }}
+            >
+              <CardActionArea onClick={() => navigate(item.route)} sx={{ p: 2.5, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                <Box sx={{ width: '100%' }}>
+                  <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5 }}>
+                    <Box
+                      sx={{
+                        width: 50,
+                        height: 50,
+                        borderRadius: 2.5,
+                        bgcolor: item.color,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}
+                    >
+                      {item.icon}
+                    </Box>
+                    <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                      <Chip
+                        size="small"
+                        label={item.tag}
+                        sx={{
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          bgcolor: item.color,
+                          color: '#0f172a',
+                          mb: 0.5
+                        }}
+                      />
+                      <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#0f172a', lineHeight: 1.2 }}>
+                        {item.title}
+                      </Typography>
+                    </Box>
                   </Stack>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.825rem', lineHeight: 1.4 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.85rem', lineHeight: 1.4 }}>
                     {item.desc}
                   </Typography>
                 </Box>
-                <ChevronRight size={20} color="#94a3b8" />
-              </Stack>
-            </CardActionArea>
-          </Card>
+                <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mt: 2, color: '#0284c7', fontWeight: 700, fontSize: '0.85rem' }}>
+                  <span>Proceed</span>
+                  <ChevronRight size={16} />
+                </Stack>
+              </CardActionArea>
+            </Card>
+          </Grid>
         ))}
-      </Stack>
+      </Grid>
 
       {/* Quick Status Bar */}
       {activeOrderCount > 0 && (
