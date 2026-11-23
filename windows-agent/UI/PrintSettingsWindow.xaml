@@ -93,17 +93,7 @@
                                 <ComboBoxItem Content="Plain Copier Paper (A4 80 GSM)" Tag="NORMAL_A4"/>
                             </ComboBox>
 
-                            <!-- Photo Framing Mode -->
-                            <TextBlock Text="Photo Framing (Aspect Ratio)" FontWeight="Bold" Foreground="#334155" FontSize="12" Margin="0,0,0,6"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                                <RadioButton x:Name="RadioPhotoFit" Content="Fit to Paper (Entire photo visible)" GroupName="PhotoFitGroup" IsChecked="True" FontWeight="SemiBold" Margin="0,0,14,0" Checked="OnSettingChanged"/>
-                                <RadioButton x:Name="RadioPhotoCrop" Content="Crop to Paper (Fill whole sheet)" GroupName="PhotoFitGroup" FontWeight="SemiBold" Checked="OnSettingChanged"/>
-                            </StackPanel>
 
-                            <!-- Border Toggle -->
-                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,12">
-                                <CheckBox x:Name="ChkPhotoBorder" Content="Enable Clean Margin Border (White border around photo)" FontWeight="Bold" Foreground="#0F172A" Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
-                            </Border>
 
                             <!-- DPI -->
                             <TextBlock Text="Print Resolution (DPI)" FontWeight="Bold" Foreground="#334155" FontSize="12" Margin="0,0,0,6"/>

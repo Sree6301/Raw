@@ -113,52 +113,30 @@ namespace SmartXeroxHub.Agent.Core
                     var srcW = originalBmp.Width;
                     var srcH = originalBmp.Height;
 
-                    int x, y, w, h;
+                    // Standard PageBounds for full 100% 1:1 scale
+                    var printableArea = (is4x6 || !enableBorder) ? e.PageBounds : e.MarginBounds;
 
+                    float scale;
                     if (is4x6)
                     {
-                        // Hardware margin calibration for HP Smart Tank 580-590 series:
-                        // In Landscape on HP 580, physical hardware margins are ~11.67 hundredths of an inch (35 px at 300 DPI)
-                        // on left and right, and ~11.67 top / ~40 trailing edge bottom.
-                        // GDI+ Graphics (0,0) is placed at the hardware margin origin.
-                        // We calibrate printable width so the entire sheet fits with balanced margins on BOTH left and right,
-                        // ensuring right-side photos and borders are NEVER cropped!
-                        float hardMarginX = e.PageSettings.HardMarginX > 0 ? e.PageSettings.HardMarginX : 11.67f;
-                        float hardMarginY = e.PageSettings.HardMarginY > 0 ? e.PageSettings.HardMarginY : 11.67f;
-
-                        float availableW = e.PageBounds.Width - (2 * hardMarginX);
-                        float availableH = e.PageBounds.Height - hardMarginY - 35f;
-
-                        float scale = Math.Min(availableW / srcW, availableH / srcH);
-                        scale *= (float)(scalePercent / 100.0);
-
-                        w = (int)(srcW * scale);
-                        h = (int)(srcH * scale);
-
-                        // Center horizontally between hardware margins for balanced left & right borders
-                        x = (int)((availableW - w) / 2);
-                        y = 0; // Align to top hardware margin so top space is absorbed and bottom row avoids cutoff
+                        // 100% exact 1:1 scale without any shrinking (600 / 1800 = 0.33333, 400 / 1200 = 0.33333)
+                        // Preserves exact original photo height and length
+                        scale = (float)printableArea.Width / srcW;
+                    }
+                    else if (fitMode == "FILL" || fitMode == "CROP")
+                    {
+                        scale = Math.Max((float)printableArea.Width / srcW, (float)printableArea.Height / srcH);
                     }
                     else
                     {
-                        var printableArea = enableBorder ? e.MarginBounds : e.PageBounds;
-                        float scale;
-                        if (fitMode == "FILL" || fitMode == "CROP")
-                        {
-                            scale = Math.Max((float)printableArea.Width / srcW, (float)printableArea.Height / srcH);
-                        }
-                        else
-                        {
-                            scale = Math.Min((float)printableArea.Width / srcW, (float)printableArea.Height / srcH);
-                        }
-                        scale *= (float)(scalePercent / 100.0);
-
-                        w = (int)(srcW * scale);
-                        h = (int)(srcH * scale);
-                        x = printableArea.X + (printableArea.Width - w) / 2;
-                        y = printableArea.Y + (printableArea.Height - h) / 2;
+                        scale = Math.Min((float)printableArea.Width / srcW, (float)printableArea.Height / srcH);
                     }
+                    scale *= (float)(scalePercent / 100.0);
 
+                    var w = (int)(srcW * scale);
+                    var h = (int)(srcH * scale);
+                    var x = printableArea.X + (printableArea.Width - w) / 2;
+                    var y = printableArea.Y + (printableArea.Height - h) / 2;
                     var destRect = new Rectangle(x, y, w, h);
 
                     e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;

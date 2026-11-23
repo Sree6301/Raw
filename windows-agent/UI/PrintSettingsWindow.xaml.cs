@@ -88,8 +88,6 @@ namespace SmartXeroxHub.Agent.UI
                     TxtPhotoSub.Text = "Pre-configured for standard 4×6 inch HP Glossy Photo Paper";
                     SelectComboTag(ComboPhotoPaperType, "PHOTO_4X6");
                     ComboPhotoPaperType.IsEnabled = false; // Locked to 4x6
-                    ChkPhotoBorder.IsChecked = false; // Individual photos have borders; sheet border is OFF to preserve margins
-                    RadioPhotoFit.IsChecked = true; // Always fit without cropping
                 }
                 else
                 {
@@ -102,10 +100,6 @@ namespace SmartXeroxHub.Agent.UI
 
                 int dpi = _order.PrintSettings?.Dpi ?? 600;
                 SelectComboTag(ComboPhotoDpi, dpi.ToString());
-
-                ChkPhotoBorder.IsChecked = _order.PrintSettings?.EnableBorder ?? false;
-                if (_order.PrintSettings?.FitMode == "CROP" && !isPass) RadioPhotoCrop.IsChecked = true;
-                else RadioPhotoFit.IsChecked = true;
             }
             else // DOCUMENT (SINGLE OR DUPLEX)
             {
@@ -189,8 +183,7 @@ namespace SmartXeroxHub.Agent.UI
 
                 if (_order.IsPassport8 || _order.ServiceType == "PHOTO")
                 {
-                    bool enableBorder = ChkPhotoBorder.IsChecked == true;
-                    BorderVisualOverlay.Visibility = enableBorder ? Visibility.Visible : Visibility.Collapsed;
+                    BorderVisualOverlay.Visibility = Visibility.Collapsed;
 
                     using var fs = new FileStream(_resolvedFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                     using var bmp = new Bitmap(fs);
@@ -201,7 +194,7 @@ namespace SmartXeroxHub.Agent.UI
 
                     ImgPreview.Source = BitmapToSource(bmp);
                     TxtPreviewDimensions.Text = _order.IsPassport8 ? "HP 4×6 Glossy (1800 × 1200 px • 8-Up)" : $"Photo: {bmp.Width} × {bmp.Height} px";
-                    TxtPreviewStatus.Text = $"{(RadioPhotoCrop.IsChecked == true ? "Crop/Fill" : "Fit to Paper")} • {(enableBorder ? "Border ON" : "Borderless")}";
+                    TxtPreviewStatus.Text = $"{(_order.IsPassport8 ? "HP 4×6" : GetSelectedTag(ComboPhotoPaperType))} • 100% Studio Scale • Borderless";
                     return;
                 }
 
@@ -398,8 +391,6 @@ namespace SmartXeroxHub.Agent.UI
                 int.TryParse(GetSelectedTag(ComboPhotoDpi), out int dpi);
                 if (dpi <= 0) dpi = 600;
 
-                string fitMode = RadioPhotoCrop.IsChecked == true ? "CROP" : "FIT";
-                bool enableBorder = ChkPhotoBorder.IsChecked == true;
                 string orient = _order.IsPassport8 ? "LANDSCAPE" : "PORTRAIT";
 
                 return new PrintJobOptions
@@ -410,8 +401,8 @@ namespace SmartXeroxHub.Agent.UI
                     PaperType = pType,
                     PaperSize = pType.Contains("4X6") ? "4X6" : "A4",
                     ColorMode = RadioPhotoColor.IsChecked == true ? "COLOR" : "BW",
-                    FitMode = fitMode,
-                    EnableBorder = enableBorder,
+                    FitMode = "FIT",
+                    EnableBorder = false,
                     ScalePercent = 100.0,
                     Scope = "ALL_PAGES"
                 };
