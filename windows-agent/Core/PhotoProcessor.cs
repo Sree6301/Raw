@@ -100,9 +100,13 @@ namespace SmartXeroxHub.Agent.Core
                     );
                 }
 
+                // =========================================================================
+                // 🔒 PERMANENT CALIBRATION STANDARD - DO NOT MODIFY!
+                // See PASSPORT_PHOTO_8_CALIBRATION_README.md for exact specifications.
                 // CRITICAL FOR HP SMART TANK 580:
                 // Set PaperSize, Landscape, and Margins on BOTH DefaultPageSettings AND PrinterSettings.DefaultPageSettings!
                 // This prevents HP Error E2 (paper length mismatch) and continuous feed spooler loops.
+                // =========================================================================
                 printDoc.DefaultPageSettings.PaperSize = selectedPaperSize;
                 printDoc.PrinterSettings.DefaultPageSettings.PaperSize = selectedPaperSize;
 

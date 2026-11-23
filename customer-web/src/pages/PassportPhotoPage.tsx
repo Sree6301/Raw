@@ -246,14 +246,19 @@ export function PassportPhotoPage() {
     const cols = 4;
     const rows = 2;
 
-    // Standard 4x6 inch paper in landscape = 1795 x 1205 px (or 1800 x 1200 px at 300 DPI)
-    // Exact Reference Size photo dimensions (100% full scale, never reduced)
-    const photoW = 397;
-    const photoH = 513;
+    // =========================================================================
+    // 🔒 PERMANENT CALIBRATION STANDARD - DO NOT MODIFY THESE CONSTANTS!
+    // See PASSPORT_PHOTO_8_CALIBRATION_README.md for exact math and hardware verification.
+    // Standard 4x6 inch paper in landscape = 1800 x 1200 px at 300 DPI.
+    // Verified on physical HP Smart Tank 580 series: 100% full scale, 0 cropping.
+    // =========================================================================
+    const photoW = 397;        // 33.6 mm @ 300 DPI
+    const photoH = 513;        // 43.4 mm @ 300 DPI
 
-    // Shifted left by 0.1 cm (12 px) to leftMargin = 36 px to perfectly eliminate right-side cropping
+    // Calibrated leftMargin = 36 px (3.05 mm) perfectly eliminates right-side cropping
     // Left margin = 36 px (3.05 mm - safely clears left hardware margin)
     // Right margin = 1800 - (36 + 4*397 + 3*36) = 1800 - 1732 = 68 px (5.76 mm - safely clears right hardware margin)
+    // Bottom margin = 1200 - (12 + 2*513 + 36) = 1200 - 1074 = 126 px (10.67 mm - safely clears HP trailing roller)
     const leftMargin = 36;
     const colGap = 36;
     const topMargin = 12;
