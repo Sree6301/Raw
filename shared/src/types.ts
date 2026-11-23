@@ -160,6 +160,8 @@ export interface PhotoOrder {
   copies: number;
   photosPerSheet: 1 | 2 | 4 | 8;
   photoType?: 'STANDARD' | 'PASSPORT_8';
+  enableBorder?: boolean;
+  orientation?: 'PORTRAIT' | 'LANDSCAPE';
   calculatedPrice: number;
   paymentStatus: 'UNPAID' | 'CASH_CONFIRMED' | 'UPI_CONFIRMED';
   printSettings?: OrderPrintSettings;

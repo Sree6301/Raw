@@ -244,6 +244,8 @@ export function createRouter(
       const paperType = req.body.paperType === 'PHOTO_4X6' ? 'PHOTO_4X6' : 'PHOTO_A4';
       const colorMode = req.body.colorMode === 'BW' ? 'BW' : 'COLOR';
       const copies = Math.max(1, parseInt(req.body.copies || '1', 10));
+      const enableBorder = req.body.enableBorder === 'true' || req.body.borderMode === 'BORDER' || req.body.borderMode === 'WITH_BORDER';
+      const orientation = (req.body.orientation === 'PORTRAIT' ? 'PORTRAIT' : 'LANDSCAPE') as 'PORTRAIT' | 'LANDSCAPE';
 
       const isPassport = req.body.photoType === 'PASSPORT_8' || req.body.photosPerSheet === '8' || parseInt(req.body.photosPerSheet || '1', 10) === 8;
       const photosPerSheet = (isPassport ? 8 : (parseInt(req.body.photosPerSheet || '1', 10) as 1 | 2 | 4)) as 1 | 2 | 4 | 8;
@@ -268,8 +270,21 @@ export function createRouter(
         copies,
         photosPerSheet,
         photoType,
+        enableBorder,
+        orientation,
         calculatedPrice: Math.round(calculatedPrice * 100) / 100,
         paymentStatus: 'UNPAID',
+        printSettings: {
+          dpi: 600,
+          pagesPerSheet: 1,
+          orientation: isPassport ? 'LANDSCAPE' : orientation,
+          scalePercent: 100,
+          paperType: paperType === 'PHOTO_4X6' ? 'PHOTO_GLOSSY_4X6' : 'PHOTO_GLOSSY_A4',
+          paperSize: paperType === 'PHOTO_4X6' ? '4X6' : 'A4',
+          colorMode,
+          enableBorder: isPassport ? false : enableBorder,
+          fitMode: 'FIT'
+        },
         images: files.map(f => ({
           id: crypto.randomUUID(),
           fileName: f.originalname,

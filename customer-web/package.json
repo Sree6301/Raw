@@ -15,6 +15,7 @@
     "@mui/material": "^5.15.19",
     "@smart-xerox-hub/shared": "file:../shared",
     "lucide-react": "^0.383.0",
+    "pdf-lib": "^1.17.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.23.1"

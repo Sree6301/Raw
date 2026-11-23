@@ -98,6 +98,10 @@ namespace SmartXeroxHub.Agent.UI
                 if (_order.ColorMode == "BW") RadioPhotoBw.IsChecked = true;
                 else RadioPhotoColor.IsChecked = true;
 
+                bool photoBorder = _order.PrintSettings?.EnableBorder ?? false;
+                if (photoBorder) RadioPhotoWithBorder.IsChecked = true;
+                else RadioPhotoBorderless.IsChecked = true;
+
                 int dpi = _order.PrintSettings?.Dpi ?? 600;
                 SelectComboTag(ComboPhotoDpi, dpi.ToString());
             }
@@ -232,7 +236,7 @@ namespace SmartXeroxHub.Agent.UI
                     BorderSheetFrame.Width = isLandscape ? 380 : 270;
                     BorderSheetFrame.Height = isLandscape ? 270 : 380;
 
-                    bool enableBorder = ChkDocBorder.IsChecked == true;
+                    bool enableBorder = (_order.ServiceType == "PHOTO" || _order.IsPassport8) ? (RadioPhotoWithBorder.IsChecked == true) : (ChkDocBorder.IsChecked == true);
                     BorderVisualOverlay.Visibility = enableBorder ? Visibility.Visible : Visibility.Collapsed;
 
                     ImgPreview.Source = BitmapToSource(pageBmp);
@@ -402,7 +406,7 @@ namespace SmartXeroxHub.Agent.UI
                     PaperSize = pType.Contains("4X6") ? "4X6" : "A4",
                     ColorMode = RadioPhotoColor.IsChecked == true ? "COLOR" : "BW",
                     FitMode = "FIT",
-                    EnableBorder = false,
+                    EnableBorder = RadioPhotoWithBorder.IsChecked == true,
                     ScalePercent = 100.0,
                     Scope = "ALL_PAGES"
                 };

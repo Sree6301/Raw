@@ -34,6 +34,7 @@ import {
   Printer
 } from 'lucide-react';
 import { submitPhotoOrder, fetchPricing } from '../api.js';
+import { CopiesInput } from '../components/CopiesInput';
 
 // Aspect ratio: 35mm width / 45mm height = 7/9
 const PASSPORT_ASPECT_RATIO = 35 / 45; // ~0.7778
@@ -619,14 +620,14 @@ export function PassportPhotoPage() {
               </Typography>
             </Box>
 
-            {/* Realistic 4x6 HP Photo Paper Sheet Representation */}
+            {/* Realistic 4x6 HP Photo Paper Sheet Representation (STRICTLY RECTANGULAR, ZERO ROUNDED EDGES) */}
             <Box
               sx={{
                 maxWidth: 620,
                 mx: 'auto',
                 p: 2,
                 bgcolor: '#f1f5f9',
-                borderRadius: 3,
+                borderRadius: 0,
                 border: '1px solid #cbd5e1',
                 boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.05)'
               }}
@@ -637,7 +638,7 @@ export function PassportPhotoPage() {
                   width: '100%',
                   aspectRatio: '6 / 4', // 1.5 aspect ratio for 4x6 in landscape
                   bgcolor: '#ffffff',
-                  borderRadius: 1,
+                  borderRadius: 0,
                   boxShadow: '0 12px 28px rgba(0,0,0,0.15)',
                   overflow: 'hidden',
                   border: '1px solid #e2e8f0'
@@ -646,7 +647,7 @@ export function PassportPhotoPage() {
                 <img
                   src={sheetDataUrl}
                   alt="8-Up Passport Preview"
-                  style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', borderRadius: 0 }}
                 />
 
                 {/* HP Glossy watermark pill overlay */}
@@ -660,7 +661,7 @@ export function PassportPhotoPage() {
                     color: 'white',
                     px: 1,
                     py: 0.3,
-                    borderRadius: 1,
+                    borderRadius: 0,
                     fontSize: '0.65rem',
                     fontWeight: 700,
                     letterSpacing: 0.5
@@ -672,7 +673,7 @@ export function PassportPhotoPage() {
             </Box>
 
             {/* Order Configuration Bar */}
-            <Box sx={{ mt: 3, p: 2.5, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
+            <Box sx={{ mt: 3, p: 2.5, bgcolor: '#f8fafc', borderRadius: 1, border: '1px solid #e2e8f0' }}>
               <Grid container spacing={2} alignItems="center">
                 <Grid item xs={12} sm={6}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
@@ -690,21 +691,15 @@ export function PassportPhotoPage() {
 
                 <Grid item xs={12} sm={6}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                    Sets of 8 Photos (4×6 Sheets)
+                    Sets of 8 Photos (4×6 Sheets, Max 10)
                   </Typography>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <TextField
-                      type="number"
-                      size="small"
-                      value={copies}
-                      onChange={(e) => setCopies(Math.max(1, parseInt(e.target.value || '1', 10)))}
-                      inputProps={{ min: 1, max: 20 }}
-                      sx={{ width: 100 }}
-                    />
-                    <Typography variant="body2" color="text.secondary">
-                      sheet(s) = <strong>{copies * 8} total photos</strong>
-                    </Typography>
-                  </Stack>
+                  <CopiesInput
+                    value={copies}
+                    onChange={(val) => setCopies(val)}
+                    min={1}
+                    max={10}
+                    label={`sheet(s) = ${copies * 8} total photos`}
+                  />
                 </Grid>
               </Grid>
 

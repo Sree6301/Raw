@@ -113,7 +113,11 @@ namespace SmartXeroxHub.Agent.Core
                 printDoc.DefaultPageSettings.Landscape = isLandscape;
                 printDoc.PrinterSettings.DefaultPageSettings.Landscape = isLandscape;
 
-                var margins = (is4x6 || !enableBorder) ? new Margins(0, 0, 0, 0) : new Margins(25, 25, 25, 25);
+                // Borderless (default): Margins 0,0,0,0 -> full edge-to-edge bleed.
+                // With Border: Outside white empty margin border (0.2" on 4x6, 0.3" on A4).
+                var margins = !enableBorder
+                    ? new Margins(0, 0, 0, 0)
+                    : (is4x6 ? new Margins(20, 20, 20, 20) : new Margins(30, 30, 30, 30));
                 printDoc.DefaultPageSettings.Margins = margins;
                 printDoc.PrinterSettings.DefaultPageSettings.Margins = margins;
 
@@ -129,15 +133,20 @@ namespace SmartXeroxHub.Agent.Core
                     var srcW = originalBmp.Width;
                     var srcH = originalBmp.Height;
 
-                    // Standard PageBounds for full 100% 1:1 scale
-                    var printableArea = (is4x6 || !enableBorder) ? e.PageBounds : e.MarginBounds;
+                    // Borderless prints full page e.PageBounds; With Border prints inside e.MarginBounds leaving white paper margin
+                    var printableArea = !enableBorder ? e.PageBounds : e.MarginBounds;
 
                     float scale;
-                    if (is4x6)
+                    if (is4x6 && !enableBorder)
                     {
                         // 100% exact 1:1 scale without any shrinking (600 / 1800 = 0.33333, 400 / 1200 = 0.33333)
                         // Preserves exact original photo height and length
                         scale = (float)printableArea.Width / srcW;
+                    }
+                    else if (enableBorder)
+                    {
+                        // Clean fit inside margin bounds with white border surround
+                        scale = Math.Min((float)printableArea.Width / srcW, (float)printableArea.Height / srcH);
                     }
                     else if (fitMode == "FILL" || fitMode == "CROP")
                     {
@@ -177,13 +186,6 @@ namespace SmartXeroxHub.Agent.Core
                     else
                     {
                         e.Graphics.DrawImage(originalBmp, destRect);
-                    }
-
-                    // Only draw outer border if NOT 4x6 photo paper (passport photos have individual photo borders)
-                    if (enableBorder && !is4x6)
-                    {
-                        using var pen = new Pen(Color.FromArgb(180, 180, 180), 2.0f);
-                        e.Graphics.DrawRectangle(pen, destRect);
                     }
 
                     e.HasMorePages = false;

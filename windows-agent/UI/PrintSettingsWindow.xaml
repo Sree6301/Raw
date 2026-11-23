@@ -109,6 +109,13 @@
                                 <RadioButton x:Name="RadioPhotoColor" Content="Color (CMYK vivid)" GroupName="PhotoColorGroup" IsChecked="True" FontWeight="SemiBold" Margin="0,0,16,0" Checked="OnSettingChanged"/>
                                 <RadioButton x:Name="RadioPhotoBw" Content="Black &amp; White" GroupName="PhotoColorGroup" FontWeight="SemiBold" Checked="OnSettingChanged"/>
                             </StackPanel>
+
+                            <!-- Photo Border Framing (Borderless / With Border) -->
+                            <TextBlock Text="Photo Border Framing" FontWeight="Bold" Foreground="#334155" FontSize="12" Margin="0,0,0,6"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                <RadioButton x:Name="RadioPhotoBorderless" Content="Borderless (Full Page)" GroupName="PhotoBorderGroup" IsChecked="True" FontWeight="SemiBold" Margin="0,0,16,0" Checked="OnSettingChanged"/>
+                                <RadioButton x:Name="RadioPhotoWithBorder" Content="With White Border" GroupName="PhotoBorderGroup" FontWeight="SemiBold" Checked="OnSettingChanged"/>
+                            </StackPanel>
                         </StackPanel>
 
                         <!-- ================= DOCUMENT SECTION ================= -->
