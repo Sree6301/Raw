@@ -281,6 +281,18 @@ namespace SmartXeroxHub.Agent
                     return;
                 }
 
+                // If Passport 8-up: prompt operator to insert 4x6 paper
+                if (order.IsPassport8)
+                {
+                    var res = MessageBox.Show(
+                        $"⚠️ HARDWARE ACTION REQUIRED FOR ORDER '{order.OrderNumber}':\n\n1. Please insert 4×6 inch HP Glossy Photo Paper into the rear tray of HP Smart Tank 589.\n2. Adjust rear paper guide snugly to 4×6.\n\nClick OK once 4×6 photo paper is inserted to proceed with printing 8 passport photos.",
+                        "Insert 4×6 HP Photo Paper",
+                        MessageBoxButton.OKCancel,
+                        MessageBoxImage.Information
+                    );
+                    if (res != MessageBoxResult.OK) return;
+                }
+
                 // Standard Single Document or Photo: "🖨️ Approve & Print"
                 btn.IsEnabled = false;
                 btn.Content = "⏳ Spooling...";
@@ -308,7 +320,8 @@ namespace SmartXeroxHub.Agent
                         }
                         else
                         {
-                            PhotoProcessor.PrintPhoto(localFile, printerName, order.PaperType, order.ColorMode, "FIT", order.OrderNumber);
+                            string orientation = order.IsPassport8 ? "LANDSCAPE" : (order.PrintSettings?.Orientation ?? "PORTRAIT");
+                            PhotoProcessor.PrintPhoto(localFile, printerName, order.PaperType, order.ColorMode, "FIT", order.OrderNumber, 100.0, orientation);
                         }
                         MessageBox.Show($"Printed locally to '{printerName}'!", "Print Succeeded", MessageBoxButton.OK, MessageBoxImage.Information);
                     }

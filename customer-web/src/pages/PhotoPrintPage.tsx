@@ -24,7 +24,8 @@ import {
   Upload,
   Image as ImageIcon,
   CheckCircle2,
-  Trash2
+  Trash2,
+  Sparkles
 } from 'lucide-react';
 import { submitPhotoOrder } from '../api.js';
 
@@ -102,6 +103,25 @@ export function PhotoPrintPage() {
 
       <form onSubmit={handleSubmit}>
         <Stack spacing={2.5}>
+          {/* Passport Photo Quick Banner */}
+          <Alert
+            severity="info"
+            icon={<Sparkles size={20} color="#0284c7" />}
+            action={
+              <Button color="primary" size="small" variant="contained" onClick={() => navigate('/passport-photo')} sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>
+                Open Passport 8-Up
+              </Button>
+            }
+            sx={{ borderRadius: 2, bgcolor: '#f0f9ff', border: '1px solid #bae6fd' }}
+          >
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0369a1' }}>
+              Need Passport Size Photos? (8 Copies)
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Use our auto face cropper & print 8 passport photos on HP 4×6 Glossy Paper with cutting borders for ₹30.
+            </Typography>
+          </Alert>
+
           {/* Upload Card */}
           <Card sx={{ border: '2px dashed #cbd5e1', bgcolor: '#f8fafc', textAlign: 'center', p: 3 }}>
             <input

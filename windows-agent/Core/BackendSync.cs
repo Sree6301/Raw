@@ -38,11 +38,16 @@ namespace SmartXeroxHub.Agent.Core
         public int ScannedPagesCount { get; set; } = 0;
         public int RequestedPagesCount { get; set; } = 1;
         public List<string> ScannedPageUrls { get; set; } = new();
+        public int PhotosPerSheet { get; set; } = 1;
+        public string PhotoType { get; set; } = "STANDARD";
 
         public bool IsScan => ServiceType == "SCAN";
         public bool IsDuplex => Sides == "MANUAL_DUPLEX";
+        public bool IsPassport8 => PhotoType == "PASSPORT_8" || PhotosPerSheet == 8;
         public bool HasScannedPages => IsScan && ScannedPagesCount > 0;
         public string ScanProgressBadge => $"{ScannedPagesCount}/{RequestedPagesCount} Scanned ✓";
+        public string HardwareInstruction => IsPassport8 ? "⚠️ Insert 4×6 HP Paper" : "";
+        public bool HasHardwareInstruction => !string.IsNullOrEmpty(HardwareInstruction);
 
         public string ActionButtonText
         {
@@ -58,6 +63,7 @@ namespace SmartXeroxHub.Agent.Core
                     return $"🔍 Approve & Scan (1/{RequestedPagesCount})";
                 }
                 if (IsDuplex) return "📑 Approve & Duplex";
+                if (IsPassport8) return "🖨️ Approve & Print (4×6 HP Paper)";
                 return "🖨️ Approve & Print";
             }
         }
@@ -71,6 +77,7 @@ namespace SmartXeroxHub.Agent.Core
         public decimal A4ColorDoubleSideRate { get; set; } = 18.0m;
         public decimal PhotoA4Rate { get; set; } = 40.0m;
         public decimal Photo4x6Rate { get; set; } = 20.0m;
+        public decimal Passport8Rate { get; set; } = 30.0m;
         public decimal ScanPerPageRate { get; set; } = 10.0m;
         public string ShopName { get; set; } = "SMART XEROX HUB";
     }
@@ -471,17 +478,23 @@ namespace SmartXeroxHub.Agent.Core
                         string loc = !string.IsNullOrEmpty(fileUrl) ? Path.Combine(_rawUploadsDir, Path.GetFileName(fileUrl)) : "";
 
                         string pType = p.TryGetProperty("paperType", out var ptProp) ? ptProp.GetString()! : "PHOTO_4X6";
+                        int pps = p.TryGetProperty("photosPerSheet", out var ppsProp) ? ppsProp.GetInt32() : 1;
+                        string pTag = p.TryGetProperty("photoType", out var ptTag) ? ptTag.GetString() ?? "STANDARD" : "STANDARD";
+                        bool isPass8 = pps == 8 || pTag == "PASSPORT_8";
+
                         var photoItem = new BackendOrderDto
                         {
                             Id = p.GetProperty("id").GetString()!,
                             OrderNumber = p.GetProperty("orderNumber").GetString()!,
-                            ServiceType = "PHOTO",
+                            ServiceType = isPass8 ? "PASSPORT" : "PHOTO",
                             Status = p.GetProperty("status").GetString()!,
-                            OriginalFileName = fileName,
+                            OriginalFileName = isPass8 ? $"Passport (8 Copies) - {fileName}" : fileName,
                             FileUrl = fileUrl,
                             LocalFilePath = loc,
                             TotalPages = 1,
                             Copies = p.GetProperty("copies").GetInt32(),
+                            PhotosPerSheet = pps,
+                            PhotoType = isPass8 ? "PASSPORT_8" : "STANDARD",
                             ColorMode = p.GetProperty("colorMode").GetString()!,
                             PaperType = pType,
                             PaperSize = pType.Contains("4X6", StringComparison.OrdinalIgnoreCase) ? "4X6" : "A4",
@@ -493,7 +506,7 @@ namespace SmartXeroxHub.Agent.Core
                             photoItem.PrintSettings = new PrintJobOptions
                             {
                                 Dpi = psVal2.TryGetProperty("dpi", out var dpi) ? dpi.GetInt32() : 600,
-                                PagesPerSheet = psVal2.TryGetProperty("pagesPerSheet", out var pps) ? pps.GetInt32() : 1,
+                                PagesPerSheet = psVal2.TryGetProperty("pagesPerSheet", out var ppsVal) ? ppsVal.GetInt32() : 1,
                                 Orientation = psVal2.TryGetProperty("orientation", out var ori) ? ori.GetString() ?? "PORTRAIT" : "PORTRAIT",
                                 ScalePercent = psVal2.TryGetProperty("scalePercent", out var sc) ? sc.GetDouble() : 100.0,
                                 Scope = psVal2.TryGetProperty("scope", out var scp) ? scp.GetString() ?? "ALL_PAGES" : "ALL_PAGES"

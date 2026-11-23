@@ -123,6 +123,7 @@ export function initDefaultState(): AppState {
       a4ColorDoubleSideRate: 18.0,
       photoA4Rate: 40.0,
       photo4x6Rate: 20.0,
+      passport8Rate: 30.0,
       scanPerPageRate: 10.0,
       shopUpiId: 'smartxerox@upi',
       shopName: 'SMART XEROX HUB',

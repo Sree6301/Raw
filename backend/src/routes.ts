@@ -243,10 +243,16 @@ export function createRouter(
       const paperType = req.body.paperType === 'PHOTO_4X6' ? 'PHOTO_4X6' : 'PHOTO_A4';
       const colorMode = req.body.colorMode === 'BW' ? 'BW' : 'COLOR';
       const copies = Math.max(1, parseInt(req.body.copies || '1', 10));
-      const photosPerSheet = parseInt(req.body.photosPerSheet || '1', 10) as 1 | 2 | 4;
 
-      const rate = paperType === 'PHOTO_4X6' ? state.pricingConfig.photo4x6Rate : state.pricingConfig.photoA4Rate;
-      const calculatedPrice = rate * files.length * copies;
+      const isPassport = req.body.photoType === 'PASSPORT_8' || req.body.photosPerSheet === '8' || parseInt(req.body.photosPerSheet || '1', 10) === 8;
+      const photosPerSheet = (isPassport ? 8 : (parseInt(req.body.photosPerSheet || '1', 10) as 1 | 2 | 4)) as 1 | 2 | 4 | 8;
+      const photoType = isPassport ? 'PASSPORT_8' : 'STANDARD';
+
+      let rate = paperType === 'PHOTO_4X6' ? state.pricingConfig.photo4x6Rate : state.pricingConfig.photoA4Rate;
+      if (isPassport) {
+        rate = state.pricingConfig.passport8Rate || 30.0;
+      }
+      const calculatedPrice = isPassport ? rate * copies : rate * files.length * copies;
 
       const orderId = crypto.randomUUID();
       const orderNumber = getNextOrderNumber(state, 'P');
@@ -260,6 +266,7 @@ export function createRouter(
         colorMode,
         copies,
         photosPerSheet,
+        photoType,
         calculatedPrice: Math.round(calculatedPrice * 100) / 100,
         paymentStatus: 'UNPAID',
         images: files.map(f => ({

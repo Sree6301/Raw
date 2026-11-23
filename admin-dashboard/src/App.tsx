@@ -515,39 +515,106 @@ export function App() {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {orders.documents.slice(0, 6).map((doc) => (
-                        <TableRow key={doc.id}>
-                          <TableCell sx={{ fontWeight: 700 }}>{doc.orderNumber}</TableCell>
-                          <TableCell>Document ({doc.sides === 'MANUAL_DUPLEX' ? 'Duplex' : 'Single'})</TableCell>
-                          <TableCell>{doc.originalFileName} ({doc.totalPages}p × {doc.copies}c)</TableCell>
-                          <TableCell>
-                            <Chip size="small" label={doc.status} sx={{ fontWeight: 600, fontSize: '0.75rem' }} />
-                          </TableCell>
-                          <TableCell sx={{ fontWeight: 700 }}>₹{doc.calculatedPrice.toFixed(2)}</TableCell>
-                          <TableCell align="right">
-                            <Stack direction="row" spacing={0.5} justifyContent="flex-end" alignItems="center">
-                              {doc.status === 'SUBMITTED' ? (
-                                <Button size="small" variant="contained" onClick={() => handleDocAction(doc.id, 'APPROVE')}>
-                                  Approve & Print
-                                </Button>
-                              ) : doc.sides === 'MANUAL_DUPLEX' ? (
-                                <Button size="small" variant="outlined" color="primary" onClick={() => setDuplexModalOrder(doc)}>
-                                  Duplex Console
-                                </Button>
-                              ) : (
-                                <Button size="small" variant="outlined" onClick={() => handleDocAction(doc.id, 'COMPLETE')}>
-                                  Complete
-                                </Button>
-                              )}
-                              <Tooltip title="Configure Print Layout & Settings">
-                                <IconButton size="small" onClick={() => handleOpenSettings(doc)} sx={{ border: '1px solid #cbd5e1' }}>
-                                  <Settings size={16} />
-                                </IconButton>
-                              </Tooltip>
-                            </Stack>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {[
+                        ...orders.documents.map((d) => ({ ...d, kind: 'DOCUMENT' as const })),
+                        ...orders.photos.map((p) => ({ ...p, kind: 'PHOTO' as const }))
+                      ]
+                        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                        .slice(0, 8)
+                        .map((item) => {
+                          if (item.kind === 'DOCUMENT') {
+                            const doc = item as typeof orders.documents[0];
+                            return (
+                              <TableRow key={doc.id}>
+                                <TableCell sx={{ fontWeight: 700 }}>{doc.orderNumber}</TableCell>
+                                <TableCell>Document ({doc.sides === 'MANUAL_DUPLEX' ? 'Duplex' : 'Single'})</TableCell>
+                                <TableCell>{doc.originalFileName} ({doc.totalPages}p × {doc.copies}c)</TableCell>
+                                <TableCell>
+                                  <Chip size="small" label={doc.status} sx={{ fontWeight: 600, fontSize: '0.75rem' }} />
+                                </TableCell>
+                                <TableCell sx={{ fontWeight: 700 }}>₹{doc.calculatedPrice.toFixed(2)}</TableCell>
+                                <TableCell align="right">
+                                  <Stack direction="row" spacing={0.5} justifyContent="flex-end" alignItems="center">
+                                    {doc.status === 'SUBMITTED' ? (
+                                      <Button size="small" variant="contained" onClick={() => handleDocAction(doc.id, 'APPROVE')}>
+                                        Approve & Print
+                                      </Button>
+                                    ) : doc.sides === 'MANUAL_DUPLEX' ? (
+                                      <Button size="small" variant="outlined" color="primary" onClick={() => setDuplexModalOrder(doc)}>
+                                        Duplex Console
+                                      </Button>
+                                    ) : (
+                                      <Button size="small" variant="outlined" onClick={() => handleDocAction(doc.id, 'COMPLETE')}>
+                                        Complete
+                                      </Button>
+                                    )}
+                                    <Tooltip title="Configure Print Layout & Settings">
+                                      <IconButton size="small" onClick={() => handleOpenSettings(doc)} sx={{ border: '1px solid #cbd5e1' }}>
+                                        <Settings size={16} />
+                                      </IconButton>
+                                    </Tooltip>
+                                  </Stack>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          } else {
+                            const photo = item as typeof orders.photos[0];
+                            const isPassport = photo.photosPerSheet === 8 || (photo as any).photoType === 'PASSPORT_8';
+                            return (
+                              <TableRow key={photo.id}>
+                                <TableCell sx={{ fontWeight: 700 }}>{photo.orderNumber}</TableCell>
+                                <TableCell>
+                                  {isPassport ? (
+                                    <Chip size="small" label="Passport (8 Copies)" sx={{ bgcolor: '#e0f2fe', color: '#0369a1', fontWeight: 700 }} />
+                                  ) : (
+                                    `Photo (${photo.paperType})`
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {photo.images?.[0]?.fileName || 'Photo'} ({photo.copies} sets • {photo.colorMode})
+                                </TableCell>
+                                <TableCell>
+                                  <Chip size="small" label={photo.status} sx={{ fontWeight: 600, fontSize: '0.75rem' }} />
+                                </TableCell>
+                                <TableCell sx={{ fontWeight: 700 }}>₹{photo.calculatedPrice.toFixed(2)}</TableCell>
+                                <TableCell align="right">
+                                  <Stack direction="row" spacing={0.5} justifyContent="flex-end" alignItems="center">
+                                    {isPassport && (
+                                      <Chip
+                                        size="small"
+                                        label="⚠️ Insert 4×6 Paper"
+                                        sx={{ bgcolor: '#fef3c7', color: '#92400e', fontWeight: 800, border: '1px solid #fde68a' }}
+                                      />
+                                    )}
+                                    {photo.status === 'SUBMITTED' ? (
+                                      <Button
+                                        size="small"
+                                        variant="contained"
+                                        onClick={() => {
+                                          if (isPassport) {
+                                            alert("⚠️ Operator Action:\nPlease insert 4×6 inch HP Glossy Photo Paper into printer rear tray before proceeding.");
+                                          }
+                                          handlePhotoAction(photo.id, 'APPROVE');
+                                        }}
+                                      >
+                                        {isPassport ? 'Approve & Print (4×6 HP Paper)' : 'Approve & Print'}
+                                      </Button>
+                                    ) : (
+                                      <Button size="small" variant="outlined" onClick={() => handlePhotoAction(photo.id, 'COMPLETE')}>
+                                        Complete
+                                      </Button>
+                                    )}
+                                    <Tooltip title="Configure Print Layout & Settings">
+                                      <IconButton size="small" onClick={() => handleOpenSettings(photo)} sx={{ border: '1px solid #cbd5e1' }}>
+                                        <Settings size={16} />
+                                      </IconButton>
+                                    </Tooltip>
+                                  </Stack>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          }
+                        })}
                     </TableBody>
                   </Table>
                 </TableContainer>
@@ -690,6 +757,7 @@ export function App() {
                   <TableBody>
                     {orders.photos.map((photo) => {
                       const firstImg = photo.images?.[0];
+                      const isPassport8 = photo.photosPerSheet === 8 || (photo as any).photoType === 'PASSPORT_8';
                       return (
                         <TableRow key={photo.id}>
                           <TableCell sx={{ fontWeight: 700 }}>{photo.orderNumber}</TableCell>
@@ -703,16 +771,20 @@ export function App() {
                                   sx={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 1, border: '1px solid #e2e8f0' }}
                                 />
                                 <a href={firstImg.fileUrl} target="_blank" rel="noreferrer" style={{ color: '#0284c7', textDecoration: 'none', fontWeight: 600, fontSize: '0.85rem' }}>
-                                  {firstImg.fileName}
+                                  {isPassport8 ? 'Passport Sheet (8-Up)' : firstImg.fileName}
                                 </a>
                               </Stack>
                             ) : '-'}
                           </TableCell>
                           <TableCell>
-                            <Chip size="small" label={photo.paperType} sx={{ fontWeight: 600, bgcolor: '#fdf2f8', color: '#be185d' }} />
+                            {isPassport8 ? (
+                              <Chip size="small" label="Passport (8-Up) • 4×6 HP Paper" sx={{ fontWeight: 700, bgcolor: '#e0f2fe', color: '#0369a1' }} />
+                            ) : (
+                              <Chip size="small" label={photo.paperType} sx={{ fontWeight: 600, bgcolor: '#fdf2f8', color: '#be185d' }} />
+                            )}
                           </TableCell>
                           <TableCell>{photo.colorMode}</TableCell>
-                          <TableCell>{photo.copies}</TableCell>
+                          <TableCell>{photo.copies} {isPassport8 ? 'sets' : 'copies'}</TableCell>
                           <TableCell>
                             <Chip
                               size="small"
@@ -729,10 +801,27 @@ export function App() {
                           <TableCell sx={{ fontWeight: 700 }}>₹{photo.calculatedPrice.toFixed(2)}</TableCell>
                           <TableCell align="right">
                             <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
+                              {isPassport8 && (
+                                <Chip
+                                  size="small"
+                                  label="⚠️ Insert 4×6 Paper"
+                                  sx={{ bgcolor: '#fef3c7', color: '#92400e', fontWeight: 800, border: '1px solid #fde68a' }}
+                                />
+                              )}
                               {photo.status === 'SUBMITTED' ? (
                                 <>
-                                  <Button size="small" variant="contained" color="primary" onClick={() => handlePhotoAction(photo.id, 'APPROVE')}>
-                                    Approve & Print
+                                  <Button
+                                    size="small"
+                                    variant="contained"
+                                    color="primary"
+                                    onClick={() => {
+                                      if (isPassport8) {
+                                        alert("⚠️ Operator Instruction:\nPlease insert 4×6 inch HP Glossy Photo Paper into the printer rear tray before proceeding.");
+                                      }
+                                      handlePhotoAction(photo.id, 'APPROVE');
+                                    }}
+                                  >
+                                    {isPassport8 ? 'Approve & Print (4×6 HP Paper)' : 'Approve & Print'}
                                   </Button>
                                   <Button size="small" variant="outlined" color="error" onClick={() => handlePhotoAction(photo.id, 'REJECT')}>
                                     Reject

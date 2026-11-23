@@ -156,7 +156,8 @@ export interface PhotoOrder {
   paperType: 'PHOTO_A4' | 'PHOTO_4X6';
   colorMode: PrintColorMode;
   copies: number;
-  photosPerSheet: 1 | 2 | 4;
+  photosPerSheet: 1 | 2 | 4 | 8;
+  photoType?: 'STANDARD' | 'PASSPORT_8';
   calculatedPrice: number;
   paymentStatus: 'UNPAID' | 'CASH_CONFIRMED' | 'UPI_CONFIRMED';
   printSettings?: OrderPrintSettings;
@@ -221,6 +222,7 @@ export interface ShopPricingConfig {
   a4ColorDoubleSideRate: number; // e.g. 18.00
   photoA4Rate: number; // e.g. 40.00
   photo4x6Rate: number; // e.g. 20.00
+  passport8Rate?: number; // e.g. 30.00 (8 passport photos on 4x6 HP Photo Paper)
   scanPerPageRate: number; // e.g. 10.00
   shopUpiId: string;
   shopName: string;

@@ -197,12 +197,18 @@ export function OrdersPage() {
                     />
                   </Stack>
 
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    {pho.images.length} Photo(s) • {pho.paperType === 'PHOTO_4X6' ? '4×6 inch Photo Paper' : 'A4 Photo Paper'}
-                  </Typography>
+                  {pho.photosPerSheet === 8 || (pho as any).photoType === 'PASSPORT_8' ? (
+                    <Typography variant="body2" sx={{ fontWeight: 700, color: '#0284c7' }}>
+                      📸 Passport Photos (8 Copies on HP 4×6 Glossy Paper)
+                    </Typography>
+                  ) : (
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {pho.images.length} Photo(s) • {pho.paperType === 'PHOTO_4X6' ? '4×6 inch Photo Paper' : 'A4 Photo Paper'}
+                    </Typography>
+                  )}
 
                   <Typography variant="caption" color="text.secondary">
-                    {pho.copies} copy(s) • {pho.colorMode}
+                    {pho.copies} {pho.photosPerSheet === 8 ? 'sheet set(s)' : 'copy(s)'} ({pho.photosPerSheet === 8 ? pho.copies * 8 : pho.images.length * pho.copies} total photos) • {pho.colorMode}
                   </Typography>
 
                   <Divider sx={{ my: 1.5 }} />

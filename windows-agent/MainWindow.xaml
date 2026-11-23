@@ -168,6 +168,10 @@
                                                         Visibility="{Binding HasScannedPages, Converter={StaticResource BoolToVis}}">
                                                     <TextBlock Text="{Binding ScanProgressBadge}" Foreground="White" FontWeight="Bold" FontSize="11"/>
                                                 </Border>
+                                                <Border Background="#FEF3C7" BorderBrush="#FDE68A" BorderThickness="1" CornerRadius="4" Padding="6,3" Margin="0,0,6,0"
+                                                        Visibility="{Binding HasHardwareInstruction, Converter={StaticResource BoolToVis}}">
+                                                    <TextBlock Text="{Binding HardwareInstruction}" Foreground="#92400E" FontWeight="Bold" FontSize="11"/>
+                                                </Border>
                                                 <Button Content="{Binding ActionButtonText}" Click="BtnRowAction_Click"
                                                         Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="10,4" Margin="0,0,6,0" BorderThickness="0"/>
                                                 <Button Content="✅ Complete" Click="BtnRowComplete_Click"

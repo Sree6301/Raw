@@ -62,9 +62,18 @@ export function HomePage() {
       route: '/print-document'
     },
     {
+      id: 'passport',
+      title: 'Passport Photos (8 Copies)',
+      desc: '8 professional passport photos on HP 4×6 Glossy Paper with precise face-cropper & cutting borders.',
+      icon: <Sparkles size={32} color="#0284c7" />,
+      tag: 'HP 4×6 Photo Paper • ₹30',
+      color: '#e0f2fe',
+      route: '/passport-photo'
+    },
+    {
       id: 'photo',
       title: 'Photo Printing',
-      desc: 'High-gloss photo prints. Passport size, single or multiple photos on sheet.',
+      desc: 'High-gloss photo prints. Full A4 or 4×6 single/custom prints.',
       icon: <ImageIcon size={32} color="#059669" />,
       tag: 'A4 & 4×6 Photo Paper',
       color: '#d1fae5',
