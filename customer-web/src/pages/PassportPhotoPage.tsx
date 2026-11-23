@@ -251,8 +251,9 @@ export function PassportPhotoPage() {
     const photoW = 397;
     const photoH = 513;
 
-    // Calibrated spacing ensuring all 4 sides are fully printable without cropping
-    const leftMargin = 16;
+    // Shifted slightly right (48 px) so left column avoids HP hardware left cutoff
+    // Right margin = 1800 - (48 + 4*397 + 3*36) = 1800 - 1744 = 56 px (both sides safely printable)
+    const leftMargin = 48;
     const colGap = 36;
     const topMargin = 12;
     const rowGap = 36;

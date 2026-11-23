@@ -58,10 +58,14 @@ namespace SmartXeroxHub.Agent.Core
                 using var printDoc = new PrintDocument();
                 printDoc.PrinterSettings.PrinterName = printerName;
                 printDoc.DocumentName = docTitle;
+                printDoc.PrintController = new StandardPrintController();
+                printDoc.PrinterSettings.Copies = 1;
 
                 var is4x6 = paperType == "PHOTO_4X6";
+                bool isLandscape = (orientation == "LANDSCAPE");
+
                 // Select printer's native paper size from driver if available
-                bool matchedSize = false;
+                PaperSize? selectedPaperSize = null;
                 if (is4x6)
                 {
                     foreach (PaperSize ps in printDoc.PrinterSettings.PaperSizes)
@@ -70,8 +74,7 @@ namespace SmartXeroxHub.Agent.Core
                             ps.PaperName.Contains("10x15", StringComparison.OrdinalIgnoreCase) ||
                             ps.PaperName.Contains("4 x 6", StringComparison.OrdinalIgnoreCase))
                         {
-                            printDoc.DefaultPageSettings.PaperSize = ps;
-                            matchedSize = true;
+                            selectedPaperSize = ps;
                             break;
                         }
                     }
@@ -82,27 +85,36 @@ namespace SmartXeroxHub.Agent.Core
                     {
                         if (ps.PaperName.Contains("A4", StringComparison.OrdinalIgnoreCase))
                         {
-                            printDoc.DefaultPageSettings.PaperSize = ps;
-                            matchedSize = true;
+                            selectedPaperSize = ps;
                             break;
                         }
                     }
                 }
 
-                if (!matchedSize)
+                if (selectedPaperSize == null)
                 {
-                    var paperSize = new PaperSize(
+                    selectedPaperSize = new PaperSize(
                         is4x6 ? "4x6" : "A4",
                         is4x6 ? 400 : 827,
                         is4x6 ? 600 : 1169
                     );
-                    printDoc.DefaultPageSettings.PaperSize = paperSize;
                 }
 
-                // For 4x6 photo paper, ALWAYS use zero margins so paper boundaries are preserved without shifting
-                printDoc.DefaultPageSettings.Margins = (is4x6 || !enableBorder) ? new Margins(0, 0, 0, 0) : new Margins(25, 25, 25, 25);
+                // CRITICAL FOR HP SMART TANK 580:
+                // Set PaperSize, Landscape, and Margins on BOTH DefaultPageSettings AND PrinterSettings.DefaultPageSettings!
+                // This prevents HP Error E2 (paper length mismatch) and continuous feed spooler loops.
+                printDoc.DefaultPageSettings.PaperSize = selectedPaperSize;
+                printDoc.PrinterSettings.DefaultPageSettings.PaperSize = selectedPaperSize;
+
+                printDoc.DefaultPageSettings.Landscape = isLandscape;
+                printDoc.PrinterSettings.DefaultPageSettings.Landscape = isLandscape;
+
+                var margins = (is4x6 || !enableBorder) ? new Margins(0, 0, 0, 0) : new Margins(25, 25, 25, 25);
+                printDoc.DefaultPageSettings.Margins = margins;
+                printDoc.PrinterSettings.DefaultPageSettings.Margins = margins;
+
                 printDoc.DefaultPageSettings.Color = (colorMode == "COLOR");
-                printDoc.DefaultPageSettings.Landscape = (orientation == "LANDSCAPE");
+                printDoc.PrinterSettings.DefaultPageSettings.Color = (colorMode == "COLOR");
 
                 using var originalBmp = new Bitmap(imagePath);
 
