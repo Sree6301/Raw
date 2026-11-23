@@ -223,13 +223,14 @@ export function PassportPhotoPage() {
 
     // Standard 4x6 inch paper in landscape = 1795 x 1205 px (or 1800 x 1200 px at 300 DPI)
     // Matches exact dimensions of G:\Smart Xerox Hub\RAW_Inputs\Reference Size.png
+    // Shifted upward so the top tiny extra margin is absorbed and bottom row avoids HP 580/589 hardware trailing edge cutoff
     const photoW = 397;
     const photoH = 513;
 
     const leftMargin = 25;
     const colGap = 48;
-    const topMargin = 60;
-    const rowGap = 60;
+    const topMargin = 12;
+    const rowGap = 36;
 
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
