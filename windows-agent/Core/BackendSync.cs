@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -12,20 +13,84 @@ using System.Threading.Tasks;
 
 namespace SmartXeroxHub.Agent.Core
 {
-    public class BackendOrderDto
+    public class BackendOrderDto : INotifyPropertyChanged
     {
+        public event PropertyChangedEventHandler? PropertyChanged;
+        private void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string? propName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
+        }
+
         public string Id { get; set; } = string.Empty;
         public string OrderNumber { get; set; } = string.Empty;
         public string ServiceType { get; set; } = string.Empty;
-        public string Status { get; set; } = string.Empty;
+
+        private string _status = string.Empty;
+        public string Status
+        {
+            get => _status;
+            set
+            {
+                if (_status != value)
+                {
+                    _status = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(IsCompleted));
+                    OnPropertyChanged(nameof(CanApproveAndPrint));
+                    OnPropertyChanged(nameof(ActionButtonText));
+                }
+            }
+        }
+
         public string OriginalFileName { get; set; } = string.Empty;
         public string FileUrl { get; set; } = string.Empty;
-        public int TotalPages { get; set; }
-        public int Copies { get; set; } = 1;
-        public string ColorMode { get; set; } = "BW";
-        public string Sides { get; set; } = "SINGLE";
+
+        private int _totalPages;
+        public int TotalPages
+        {
+            get => _totalPages;
+            set { if (_totalPages != value) { _totalPages = value; OnPropertyChanged(); } }
+        }
+
+        private int _copies = 1;
+        public int Copies
+        {
+            get => _copies;
+            set { if (_copies != value) { _copies = value; OnPropertyChanged(); } }
+        }
+
+        private string _colorMode = "BW";
+        public string ColorMode
+        {
+            get => _colorMode;
+            set { if (_colorMode != value) { _colorMode = value; OnPropertyChanged(); } }
+        }
+
+        private string _sides = "SINGLE";
+        public string Sides
+        {
+            get => _sides;
+            set
+            {
+                if (_sides != value)
+                {
+                    _sides = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(IsDuplex));
+                    OnPropertyChanged(nameof(ActionButtonText));
+                }
+            }
+        }
+
         public string DuplexStage { get; set; } = "NOT_APPLICABLE";
-        public decimal CalculatedPrice { get; set; }
+
+        private decimal _calculatedPrice;
+        public decimal CalculatedPrice
+        {
+            get => _calculatedPrice;
+            set { if (_calculatedPrice != value) { _calculatedPrice = value; OnPropertyChanged(); } }
+        }
+
         public string PaperType { get; set; } = "NORMAL_A4";
         public string PaperSize { get; set; } = "A4";
         public PrintJobOptions? PrintSettings { get; set; }
@@ -35,15 +100,52 @@ namespace SmartXeroxHub.Agent.Core
         public int Resolution { get; set; } = 300;
         public string FinalFileName { get; set; } = string.Empty;
         public string FinalFileUrl { get; set; } = string.Empty;
-        public int ScannedPagesCount { get; set; } = 0;
-        public int RequestedPagesCount { get; set; } = 1;
+
+        private int _scannedPagesCount = 0;
+        public int ScannedPagesCount
+        {
+            get => _scannedPagesCount;
+            set
+            {
+                if (_scannedPagesCount != value)
+                {
+                    _scannedPagesCount = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(HasScannedPages));
+                    OnPropertyChanged(nameof(ScanProgressBadge));
+                    OnPropertyChanged(nameof(ActionButtonText));
+                }
+            }
+        }
+
+        private int _requestedPagesCount = 1;
+        public int RequestedPagesCount
+        {
+            get => _requestedPagesCount;
+            set
+            {
+                if (_requestedPagesCount != value)
+                {
+                    _requestedPagesCount = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(ScanProgressBadge));
+                    OnPropertyChanged(nameof(ActionButtonText));
+                }
+            }
+        }
+
         public List<string> ScannedPageUrls { get; set; } = new();
         public int PhotosPerSheet { get; set; } = 1;
         public string PhotoType { get; set; } = "STANDARD";
 
         public bool IsScan => ServiceType == "SCAN";
         public bool IsDuplex => Sides == "MANUAL_DUPLEX";
-        public bool IsPassport8 => PhotoType == "PASSPORT_8" || PhotosPerSheet == 8;
+        public bool IsPassport8 => ServiceType == "PASSPORT" || PhotoType == "PASSPORT_8" || PhotosPerSheet == 8;
+        public bool IsCompleted => Status == "COMPLETED" || Status == "COMPLETE";
+        public bool CanApproveAndPrint => !IsCompleted && Status != "CANCELLED";
+        public bool CanEditSides => ServiceType == "DOCUMENT";
+        public bool CanEditCopies => ServiceType != "SCAN";
+        public bool CanEditPages => ServiceType == "SCAN";
         public bool HasScannedPages => IsScan && ScannedPagesCount > 0;
         public string ScanProgressBadge => $"{ScannedPagesCount}/{RequestedPagesCount} Scanned ✓";
         public string HardwareInstruction => IsPassport8 ? "⚠️ Insert 4×6 HP Paper" : "";
@@ -53,6 +155,7 @@ namespace SmartXeroxHub.Agent.Core
         {
             get
             {
+                if (IsCompleted) return "✅ Completed";
                 if (IsScan)
                 {
                     if (Status == "DOWNLOAD_AVAILABLE") return "✅ Delivered";
@@ -369,6 +472,7 @@ namespace SmartXeroxHub.Agent.Core
                 bool isPassport8 = false;
                 if (order.TryGetProperty("photosPerSheet", out var ppsProp) && ppsProp.GetInt32() == 8) isPassport8 = true;
                 if (order.TryGetProperty("photoType", out var ptTag) && ptTag.GetString() == "PASSPORT_8") isPassport8 = true;
+                if (serviceType == "PASSPORT") isPassport8 = true;
 
                 if (order.TryGetProperty("enableBorder", out var ebProp)) printOpt.EnableBorder = ebProp.GetBoolean();
                 if (order.TryGetProperty("fitMode", out var fmProp)) printOpt.FitMode = fmProp.GetString() ?? "FIT";
@@ -641,6 +745,32 @@ namespace SmartXeroxHub.Agent.Core
             }
 
             return list;
+        }
+
+        public async Task<bool> ModifyOrderOnBackendAsync(string orderId, string serviceType, int copies, string colorMode, string sides, string status, decimal price, int requestedPages)
+        {
+            try
+            {
+                var payload = new
+                {
+                    serviceType,
+                    copies,
+                    colorMode,
+                    sides,
+                    status,
+                    calculatedPrice = price,
+                    requestedPagesCount = requestedPages
+                };
+                var json = JsonSerializer.Serialize(payload);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var res = await _httpClient.PostAsync($"/api/admin/orders/{orderId}/modify", content);
+                return res.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                LoggingManager.Error($"[BackendSync] Failed to modify order {orderId}", ex);
+                return false;
+            }
         }
 
         public async Task<bool> TriggerPrintOrderAsync(string orderId, string printerName)

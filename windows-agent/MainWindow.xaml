@@ -134,15 +134,15 @@
 
                     <!-- Live Orders DataGrid -->
                     <Border Grid.Row="1" Background="White" CornerRadius="10" BorderBrush="#E2E8F0" BorderThickness="1" Padding="8">
-                        <DataGrid x:Name="GridOrders" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
+                        <DataGrid x:Name="GridOrders" AutoGenerateColumns="False" CanUserAddRows="False"
                                   HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F1F5F9"
-                                  BorderThickness="0" Background="White" RowHeight="44">
+                                  BorderThickness="0" Background="White" RowHeight="48">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Order #" Binding="{Binding OrderNumber}" Width="130" FontWeight="Bold"/>
-                                <DataGridTextColumn Header="Service" Binding="{Binding ServiceType}" Width="85"/>
+                                <DataGridTextColumn Header="Order #" Binding="{Binding OrderNumber}" Width="120" FontWeight="Bold" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="Service" Binding="{Binding ServiceType}" Width="80" IsReadOnly="True"/>
                                 
                                 <!-- Clickable File/Request Column -->
-                                <DataGridTemplateColumn Header="File / Request (Click to Open)" Width="230">
+                                <DataGridTemplateColumn Header="File / Request (Click to Open)" Width="200">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Button Content="{Binding OriginalFileName}" Click="BtnOpenFile_Click"
@@ -153,13 +153,167 @@
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
 
-                                <DataGridTextColumn Header="Pages" Binding="{Binding TotalPages}" Width="65"/>
-                                <DataGridTextColumn Header="Copies" Binding="{Binding Copies}" Width="65"/>
-                                <DataGridTextColumn Header="Color" Binding="{Binding ColorMode}" Width="75"/>
-                                <DataGridTextColumn Header="Sides" Binding="{Binding Sides}" Width="110"/>
-                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120" FontWeight="Bold"/>
-                                <DataGridTextColumn Header="Price (₹)" Binding="{Binding CalculatedPrice, StringFormat=₹{0:F2}}" Width="80"/>
+                                <!-- Interactive Pages Column (Editable for Scans only) -->
+                                <DataGridTemplateColumn Header="Pages" Width="70">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Grid VerticalAlignment="Center">
+                                                <TextBox Text="{Binding RequestedPagesCount, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                         Width="46" Height="26" Padding="2,2" TextAlignment="Center" FontWeight="Bold"
+                                                         LostFocus="TxtRowPages_LostFocus" KeyDown="TxtRow_KeyDown"
+                                                         ToolTip="Modify scan requested pages">
+                                                    <TextBox.Style>
+                                                        <Style TargetType="TextBox">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding CanEditPages}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBox.Style>
+                                                </TextBox>
+                                                <TextBlock Text="{Binding TotalPages}" HorizontalAlignment="Center" FontWeight="SemiBold" Foreground="#334155">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding CanEditPages}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- Interactive Copies Column (Editable for Documents & Photos) -->
+                                <DataGridTemplateColumn Header="Copies" Width="70">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Grid VerticalAlignment="Center">
+                                                <TextBox Text="{Binding Copies, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                         Width="46" Height="26" Padding="2,2" TextAlignment="Center" FontWeight="Bold"
+                                                         LostFocus="TxtRowCopies_LostFocus" KeyDown="TxtRow_KeyDown"
+                                                         ToolTip="Click to modify copies">
+                                                    <TextBox.Style>
+                                                        <Style TargetType="TextBox">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding CanEditCopies}" Value="False">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBox.Style>
+                                                </TextBox>
+                                                <TextBlock Text="—" HorizontalAlignment="Center" Foreground="#94A3B8">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding CanEditCopies}" Value="False">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- Interactive Color Column (B/W or Color) -->
+                                <DataGridTemplateColumn Header="Color" Width="95">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <ComboBox SelectedValue="{Binding ColorMode, Mode=TwoWay}"
+                                                      SelectedValuePath="Tag"
+                                                      SelectionChanged="ComboRowColor_SelectionChanged"
+                                                      Height="26" VerticalAlignment="Center" FontSize="11" FontWeight="SemiBold">
+                                                <ComboBoxItem Content="Black &amp; White" Tag="BW"/>
+                                                <ComboBoxItem Content="Color" Tag="COLOR"/>
+                                            </ComboBox>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- Interactive Sides Column (Single or Duplex - Documents Only) -->
+                                <DataGridTemplateColumn Header="Sides" Width="120">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Grid VerticalAlignment="Center">
+                                                <ComboBox SelectedValue="{Binding Sides, Mode=TwoWay}"
+                                                          SelectedValuePath="Tag"
+                                                          SelectionChanged="ComboRowSides_SelectionChanged"
+                                                          Height="26" FontSize="11" FontWeight="SemiBold">
+                                                    <ComboBox.Style>
+                                                        <Style TargetType="ComboBox">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding CanEditSides}" Value="False">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </ComboBox.Style>
+                                                    <ComboBoxItem Content="Single Side" Tag="SINGLE"/>
+                                                    <ComboBoxItem Content="Manual Duplex" Tag="MANUAL_DUPLEX"/>
+                                                </ComboBox>
+                                                <TextBlock Text="N/A" HorizontalAlignment="Center" Foreground="#94A3B8" FontSize="11">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding CanEditSides}" Value="False">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- Interactive Status Column (Completed, Pending, Failed) -->
+                                <DataGridTemplateColumn Header="Status" Width="125">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <ComboBox SelectedValue="{Binding Status, Mode=TwoWay}"
+                                                      SelectedValuePath="Tag"
+                                                      SelectionChanged="ComboRowStatus_SelectionChanged"
+                                                      Height="26" VerticalAlignment="Center" FontSize="11" FontWeight="Bold">
+                                                <ComboBoxItem Content="⏳ Pending" Tag="PENDING"/>
+                                                <ComboBoxItem Content="⏳ Submitted" Tag="SUBMITTED"/>
+                                                <ComboBoxItem Content="✅ Completed" Tag="COMPLETED"/>
+                                                <ComboBoxItem Content="❌ Failed" Tag="FAILED"/>
+                                            </ComboBox>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- Interactive Price (₹) Column -->
+                                <DataGridTemplateColumn Header="Price (₹)" Width="90">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                <TextBlock Text="₹" FontWeight="Bold" Foreground="#059669" VerticalAlignment="Center" Margin="0,0,2,0"/>
+                                                <TextBox Text="{Binding CalculatedPrice, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat={}{0:F2}}"
+                                                         Width="56" Height="26" Padding="2,2" TextAlignment="Right" FontWeight="Bold" Foreground="#059669"
+                                                         LostFocus="TxtRowPrice_LostFocus" KeyDown="TxtRow_KeyDown"
+                                                         ToolTip="Click to edit price"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                                 
+                                <!-- Operator Physical Action Column -->
                                 <DataGridTemplateColumn Header="Operator Physical Action" Width="*">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
@@ -172,12 +326,21 @@
                                                         Visibility="{Binding HasHardwareInstruction, Converter={StaticResource BoolToVis}}">
                                                     <TextBlock Text="{Binding HardwareInstruction}" Foreground="#92400E" FontWeight="Bold" FontSize="11"/>
                                                 </Border>
+                                                
+                                                <!-- Active Action Button (Approve & Print) - Hidden when Completed -->
                                                 <Button Content="{Binding ActionButtonText}" Click="BtnRowAction_Click"
+                                                        Visibility="{Binding CanApproveAndPrint, Converter={StaticResource BoolToVis}}"
                                                         Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="10,4" Margin="0,0,6,0" BorderThickness="0"/>
-                                                <Button Content="✅ Complete" Click="BtnRowComplete_Click"
-                                                        Background="#059669" Foreground="White" Padding="8,4" BorderThickness="0"/>
+
+                                                <!-- Completed Badge when order is complete -->
+                                                <Border Background="#E2E8F0" CornerRadius="4" Padding="8,4" Margin="0,0,6,0"
+                                                        Visibility="{Binding IsCompleted, Converter={StaticResource BoolToVis}}">
+                                                    <TextBlock Text="✅ Completed" Foreground="#475569" FontWeight="Bold" FontSize="11"/>
+                                                </Border>
+
+                                                <!-- Settings Button: at the right side of action -->
                                                 <Button Content="⚙️ Settings" Click="BtnRowSettings_Click"
-                                                        Background="#475569" Foreground="White" Padding="8,4" Margin="6,0,0,0" BorderThickness="0"
+                                                        Background="#475569" Foreground="White" Padding="8,4" BorderThickness="0"
                                                         ToolTip="Configure Print Layout &amp; Settings"/>
                                             </StackPanel>
                                         </DataTemplate>

@@ -25,7 +25,7 @@ import {
   Image as ImageIcon,
   CheckCircle2,
   Trash2,
-  Sparkles
+  Camera
 } from 'lucide-react';
 import { submitPhotoOrder } from '../api.js';
 
@@ -106,7 +106,7 @@ export function PhotoPrintPage() {
           {/* Passport Photo Quick Banner */}
           <Alert
             severity="info"
-            icon={<Sparkles size={20} color="#0284c7" />}
+            icon={<Camera size={20} color="#0284c7" />}
             action={
               <Button color="primary" size="small" variant="contained" onClick={() => navigate('/passport-photo')} sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>
                 Open Passport 8-Up

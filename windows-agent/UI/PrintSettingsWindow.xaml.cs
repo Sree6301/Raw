@@ -85,11 +85,12 @@ namespace SmartXeroxHub.Agent.UI
                     TxtPhotoSub.Text = "Pre-configured for standard 4×6 inch HP Glossy Photo Paper";
                     SelectComboTag(ComboPhotoPaperType, "PHOTO_4X6");
                     ComboPhotoPaperType.IsEnabled = false; // Locked to 4x6
-                    ChkPhotoBorder.IsChecked = true; // Default border enabled for passport
+                    ChkPhotoBorder.IsChecked = false; // Individual photos have borders; sheet border is OFF to preserve margins
+                    RadioPhotoFit.IsChecked = true; // Always fit without cropping
                 }
                 else
                 {
-                    string pType = _order.PaperType.Contains("A4", StringComparison.OrdinalIgnoreCase) ? "PHOTO_A4" : "PHOTO_4X6";
+                    string pType = (_order.PaperType ?? "").Contains("A4", StringComparison.OrdinalIgnoreCase) ? "PHOTO_A4" : "PHOTO_4X6";
                     SelectComboTag(ComboPhotoPaperType, pType);
                 }
 
@@ -99,8 +100,8 @@ namespace SmartXeroxHub.Agent.UI
                 int dpi = _order.PrintSettings?.Dpi ?? 600;
                 SelectComboTag(ComboPhotoDpi, dpi.ToString());
 
-                ChkPhotoBorder.IsChecked = _order.PrintSettings?.EnableBorder ?? isPass;
-                if (_order.PrintSettings?.FitMode == "CROP") RadioPhotoCrop.IsChecked = true;
+                ChkPhotoBorder.IsChecked = _order.PrintSettings?.EnableBorder ?? false;
+                if (_order.PrintSettings?.FitMode == "CROP" && !isPass) RadioPhotoCrop.IsChecked = true;
                 else RadioPhotoFit.IsChecked = true;
             }
             else // DOCUMENT (SINGLE OR DUPLEX)
@@ -114,8 +115,8 @@ namespace SmartXeroxHub.Agent.UI
                 PanelDocSettings.Visibility = Visibility.Visible;
                 PanelPageNav.Visibility = _totalPages > 1 ? Visibility.Visible : Visibility.Collapsed;
 
-                SelectComboTag(ComboDocPaperType, _order.PaperType.Contains("PHOTO") ? "PHOTO_4X6" : "NORMAL_A4");
-                SelectComboTag(ComboDocColorMode, _order.ColorMode);
+                SelectComboTag(ComboDocPaperType, (_order.PaperType ?? "").Contains("PHOTO") ? "PHOTO_4X6" : "NORMAL_A4");
+                SelectComboTag(ComboDocColorMode, _order.ColorMode ?? "BW");
                 SelectComboTag(ComboDocNUp, (_order.PrintSettings?.PagesPerSheet ?? 1).ToString());
                 SelectComboTag(ComboDocDpi, (_order.PrintSettings?.Dpi ?? 300).ToString());
 
@@ -173,7 +174,8 @@ namespace SmartXeroxHub.Agent.UI
                     if (_resolvedFilePath.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
                         _resolvedFilePath.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
                     {
-                        using var bmp = new Bitmap(_resolvedFilePath);
+                        using var fs = new FileStream(_resolvedFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                        using var bmp = new Bitmap(fs);
                         ImgPreview.Source = BitmapToSource(bmp);
                     }
                     TxtPreviewDimensions.Text = $"HP 589 Flatbed Scan • {GetSelectedTag(ComboScanDpi)} DPI";
@@ -186,7 +188,8 @@ namespace SmartXeroxHub.Agent.UI
                     bool enableBorder = ChkPhotoBorder.IsChecked == true;
                     BorderVisualOverlay.Visibility = enableBorder ? Visibility.Visible : Visibility.Collapsed;
 
-                    using var bmp = new Bitmap(_resolvedFilePath);
+                    using var fs = new FileStream(_resolvedFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                    using var bmp = new Bitmap(fs);
                     bool isLandscape = _order.IsPassport8 || bmp.Width > bmp.Height;
 
                     BorderSheetFrame.Width = isLandscape ? 360 : 250;

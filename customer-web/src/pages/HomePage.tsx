@@ -21,7 +21,7 @@ import {
   Printer,
   ChevronRight,
   ShieldCheck,
-  Sparkles
+  Camera
 } from 'lucide-react';
 import { getOrCreateGuestSession, fetchGuestOrders, fetchPricing } from '../api.js';
 
@@ -65,7 +65,7 @@ export function HomePage() {
       id: 'passport',
       title: 'Passport Photos (8 Copies)',
       desc: '8 professional passport photos on HP 4×6 Glossy Paper with precise face-cropper & cutting borders.',
-      icon: <Sparkles size={32} color="#0284c7" />,
+      icon: <Camera size={32} color="#0284c7" />,
       tag: 'HP 4×6 Photo Paper • ₹30',
       color: '#e0f2fe',
       route: '/passport-photo'
@@ -127,7 +127,7 @@ export function HomePage() {
         <Stack direction="row" spacing={1} justifyContent="center" sx={{ mb: 1.5 }}>
           <Chip
             size="small"
-            icon={<Sparkles size={14} color="#059669" />}
+            icon={<Printer size={14} color="#059669" />}
             label="HP Smart Tank 589 Ready"
             sx={{ bgcolor: '#ecfdf5', color: '#047857', fontWeight: 600, border: '1px solid #a7f3d0' }}
           />

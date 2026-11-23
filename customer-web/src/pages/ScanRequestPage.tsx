@@ -21,8 +21,7 @@ import {
   ArrowLeft,
   Scan,
   CheckCircle2,
-  FileText,
-  Sparkles
+  FileText
 } from 'lucide-react';
 import { submitScanOrder } from '../api.js';
 

@@ -11,6 +11,8 @@ using SmartXeroxHub.Agent.Core;
 using SmartXeroxHub.Agent.UI;
 using MessageBox = System.Windows.MessageBox;
 using Button = System.Windows.Controls.Button;
+using TextBox = System.Windows.Controls.TextBox;
+using ComboBox = System.Windows.Controls.ComboBox;
 using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
 
 namespace SmartXeroxHub.Agent
@@ -493,19 +495,132 @@ namespace SmartXeroxHub.Agent
         {
             if (sender is Button btn && btn.DataContext is BackendOrderDto order)
             {
-                var win = new PrintSettingsWindow(order, _backendSync, _deviceManager)
+                try
                 {
-                    Owner = this
-                };
-                if (win.ShowDialog() == true)
-                {
-                    if (win.ShouldPrintImmediately)
+                    var win = new PrintSettingsWindow(order, _backendSync, _deviceManager)
                     {
-                        var printerName = _deviceManager.ActivePrinter?.Name ?? "HP Smart Tank 580-590 series";
-                        await _backendSync.TriggerPrintOrderAsync(order.Id, printerName);
-                        MessageBox.Show($"Settings applied and print command dispatched to '{printerName}'!", "Print Spooled", MessageBoxButton.OK, MessageBoxImage.Information);
+                        Owner = this
+                    };
+                    if (win.ShowDialog() == true)
+                    {
+                        if (win.ShouldPrintImmediately)
+                        {
+                            var printerName = _deviceManager.ActivePrinter?.Name ?? "HP Smart Tank 580-590 series";
+                            await _backendSync.TriggerPrintOrderAsync(order.Id, printerName);
+                            MessageBox.Show($"Settings applied and print command dispatched to '{printerName}'!", "Print Spooled", MessageBoxButton.OK, MessageBoxImage.Information);
+                        }
+                        await RefreshOrdersAsync();
                     }
-                    await RefreshOrdersAsync();
+                }
+                catch (Exception ex)
+                {
+                    LoggingManager.Error($"[MainWindow] Could not open print settings for {order.OrderNumber}", ex);
+                    MessageBox.Show($"Unable to open settings window: {ex.Message}", "Settings Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+        }
+
+        // ============================================================
+        // IN-CELL DYNAMIC ADMIN EDITING EVENT HANDLERS
+        // ============================================================
+        private async void TxtRowCopies_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox tb && tb.DataContext is BackendOrderDto order)
+            {
+                if (int.TryParse(tb.Text, out int newCopies) && newCopies > 0)
+                {
+                    if (order.Copies != newCopies)
+                    {
+                        order.Copies = newCopies;
+                        await _backendSync.ModifyOrderOnBackendAsync(order.Id, order.ServiceType, order.Copies, order.ColorMode, order.Sides, order.Status, order.CalculatedPrice, order.RequestedPagesCount);
+                    }
+                }
+                else
+                {
+                    tb.Text = order.Copies.ToString();
+                }
+            }
+        }
+
+        private async void TxtRowPages_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox tb && tb.DataContext is BackendOrderDto order)
+            {
+                if (int.TryParse(tb.Text, out int newPages) && newPages > 0)
+                {
+                    if (order.RequestedPagesCount != newPages)
+                    {
+                        order.RequestedPagesCount = newPages;
+                        order.TotalPages = newPages;
+                        await _backendSync.ModifyOrderOnBackendAsync(order.Id, order.ServiceType, order.Copies, order.ColorMode, order.Sides, order.Status, order.CalculatedPrice, order.RequestedPagesCount);
+                    }
+                }
+                else
+                {
+                    tb.Text = order.RequestedPagesCount.ToString();
+                }
+            }
+        }
+
+        private async void TxtRowPrice_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox tb && tb.DataContext is BackendOrderDto order)
+            {
+                if (decimal.TryParse(tb.Text, out decimal newPrice) && newPrice >= 0)
+                {
+                    if (order.CalculatedPrice != newPrice)
+                    {
+                        order.CalculatedPrice = newPrice;
+                        await _backendSync.ModifyOrderOnBackendAsync(order.Id, order.ServiceType, order.Copies, order.ColorMode, order.Sides, order.Status, order.CalculatedPrice, order.RequestedPagesCount);
+                    }
+                }
+                else
+                {
+                    tb.Text = order.CalculatedPrice.ToString("F2");
+                }
+            }
+        }
+
+        private void TxtRow_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.Enter && sender is TextBox)
+            {
+                System.Windows.Input.Keyboard.ClearFocus();
+            }
+        }
+
+        private async void ComboRowColor_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (sender is ComboBox cb && cb.DataContext is BackendOrderDto order && cb.SelectedValue is string newColor)
+            {
+                if (order.ColorMode != newColor)
+                {
+                    order.ColorMode = newColor;
+                    await _backendSync.ModifyOrderOnBackendAsync(order.Id, order.ServiceType, order.Copies, order.ColorMode, order.Sides, order.Status, order.CalculatedPrice, order.RequestedPagesCount);
+                }
+            }
+        }
+
+        private async void ComboRowSides_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (sender is ComboBox cb && cb.DataContext is BackendOrderDto order && cb.SelectedValue is string newSides)
+            {
+                if (order.Sides != newSides)
+                {
+                    order.Sides = newSides;
+                    await _backendSync.ModifyOrderOnBackendAsync(order.Id, order.ServiceType, order.Copies, order.ColorMode, order.Sides, order.Status, order.CalculatedPrice, order.RequestedPagesCount);
+                }
+            }
+        }
+
+        private async void ComboRowStatus_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (sender is ComboBox cb && cb.DataContext is BackendOrderDto order && cb.SelectedValue is string newStatus)
+            {
+                if (order.Status != newStatus)
+                {
+                    order.Status = newStatus;
+                    await _backendSync.ModifyOrderOnBackendAsync(order.Id, order.ServiceType, order.Copies, order.ColorMode, order.Sides, order.Status, order.CalculatedPrice, order.RequestedPagesCount);
                 }
             }
         }

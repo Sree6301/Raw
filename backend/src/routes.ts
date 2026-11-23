@@ -9,6 +9,7 @@ import {
   DocumentOrderStatus,
   DuplexStage,
   PhotoOrderStatus,
+  ScanOrderStatus,
   PrintOrder,
   PhotoOrder,
   ScanOrder,
@@ -493,6 +494,8 @@ export function createRouter(
         }
       }
       else if (action === 'CANCEL') order.status = 'CANCELLED';
+      else if (action === 'PENDING') order.status = 'SUBMITTED';
+      else if (action === 'FAILED') order.status = 'FAILED';
       if (notes) order.adminNotes = notes;
       order.updatedAt = new Date().toISOString();
 
@@ -501,7 +504,7 @@ export function createRouter(
       return res.json({ success: true, order });
     }
 
-    if (serviceType === 'PHOTO' && state.photoOrders.has(orderId)) {
+    if ((serviceType === 'PHOTO' || serviceType === 'PASSPORT') && state.photoOrders.has(orderId)) {
       const order = state.photoOrders.get(orderId)!;
       if (action === 'APPROVE') {
         order.status = 'APPROVED';
@@ -530,6 +533,8 @@ export function createRouter(
         }
       }
       else if (action === 'CANCEL') order.status = 'CANCELLED';
+      else if (action === 'PENDING') order.status = 'SUBMITTED';
+      else if (action === 'FAILED') order.status = 'FAILED';
 
       savePersistedState(state);
       broadcastEvent('PHOTO_ORDER_UPDATED', { order });
@@ -545,7 +550,53 @@ export function createRouter(
         order.status = 'COMPLETED';
       }
       else if (action === 'CANCEL') order.status = 'CANCELLED';
+      else if (action === 'PENDING') order.status = 'SUBMITTED';
+      else if (action === 'FAILED') order.status = 'FAILED';
 
+      savePersistedState(state);
+      broadcastEvent('SCAN_ORDER_UPDATED', { order });
+      return res.json({ success: true, order });
+    }
+
+    res.status(404).json({ success: false, error: 'Order not found' });
+  });
+
+  // Direct Admin In-Cell Modifications
+  router.post('/admin/orders/:orderId/modify', (req: Request, res: Response) => {
+    const { orderId } = req.params;
+    const { serviceType, copies, colorMode, sides, status, calculatedPrice, requestedPagesCount } = req.body;
+
+    if ((serviceType === 'DOCUMENT' || !serviceType) && state.printOrders.has(orderId)) {
+      const order = state.printOrders.get(orderId)!;
+      if (copies !== undefined) order.copies = Math.max(1, parseInt(copies, 10));
+      if (colorMode) order.colorMode = colorMode;
+      if (sides) order.sides = sides;
+      if (status) order.status = status === 'PENDING' ? 'SUBMITTED' : (status as DocumentOrderStatus);
+      if (calculatedPrice !== undefined) order.calculatedPrice = parseFloat(calculatedPrice);
+      order.updatedAt = new Date().toISOString();
+      savePersistedState(state);
+      broadcastEvent('ORDER_UPDATED', { order, duplex: state.duplexJobs.get(orderId) });
+      return res.json({ success: true, order });
+    }
+
+    if ((serviceType === 'PHOTO' || serviceType === 'PASSPORT' || !serviceType) && state.photoOrders.has(orderId)) {
+      const order = state.photoOrders.get(orderId)!;
+      if (copies !== undefined) order.copies = Math.max(1, parseInt(copies, 10));
+      if (colorMode) order.colorMode = colorMode;
+      if (status) order.status = status === 'PENDING' ? 'SUBMITTED' : (status as PhotoOrderStatus);
+      if (calculatedPrice !== undefined) order.calculatedPrice = parseFloat(calculatedPrice);
+      order.updatedAt = new Date().toISOString();
+      savePersistedState(state);
+      broadcastEvent('PHOTO_ORDER_UPDATED', { order });
+      return res.json({ success: true, order });
+    }
+
+    if ((serviceType === 'SCAN' || !serviceType) && state.scanOrders.has(orderId)) {
+      const order = state.scanOrders.get(orderId)!;
+      if (colorMode) order.colorMode = colorMode;
+      if (requestedPagesCount !== undefined) order.requestedPageCount = Math.max(1, parseInt(requestedPagesCount, 10));
+      if (status) order.status = status === 'PENDING' ? 'SUBMITTED' : (status as ScanOrderStatus);
+      if (calculatedPrice !== undefined) order.calculatedPrice = parseFloat(calculatedPrice);
       savePersistedState(state);
       broadcastEvent('SCAN_ORDER_UPDATED', { order });
       return res.json({ success: true, order });

@@ -66,7 +66,8 @@ namespace SmartXeroxHub.Agent.Core
                     is4x6 ? 600 : 1169
                 );
                 printDoc.DefaultPageSettings.PaperSize = paperSize;
-                printDoc.DefaultPageSettings.Margins = enableBorder ? new Margins(25, 25, 25, 25) : new Margins(0, 0, 0, 0);
+                // For 4x6 photo paper, ALWAYS use zero margins so paper boundaries are preserved without shifting
+                printDoc.DefaultPageSettings.Margins = (is4x6 || !enableBorder) ? new Margins(0, 0, 0, 0) : new Margins(25, 25, 25, 25);
                 printDoc.DefaultPageSettings.Color = (colorMode == "COLOR");
                 printDoc.DefaultPageSettings.Landscape = (orientation == "LANDSCAPE");
 
@@ -76,12 +77,18 @@ namespace SmartXeroxHub.Agent.Core
                 {
                     if (e.Graphics == null) return;
 
-                    var printableArea = e.MarginBounds;
+                    // Use PageBounds for 4x6 photo paper to utilize full hardware paper area
+                    var printableArea = (is4x6 || !enableBorder) ? e.PageBounds : e.MarginBounds;
                     var srcW = originalBmp.Width;
                     var srcH = originalBmp.Height;
 
                     float scale;
-                    if (fitMode == "FILL" || fitMode == "CROP")
+                    // For 4x6 photo paper, ALWAYS use Math.Min so 8 passport photos fit entirely with zero cropping
+                    if (is4x6)
+                    {
+                        scale = Math.Min((float)printableArea.Width / srcW, (float)printableArea.Height / srcH);
+                    }
+                    else if (fitMode == "FILL" || fitMode == "CROP")
                     {
                         scale = Math.Max((float)printableArea.Width / srcW, (float)printableArea.Height / srcH);
                     }
@@ -121,7 +128,8 @@ namespace SmartXeroxHub.Agent.Core
                         e.Graphics.DrawImage(originalBmp, destRect);
                     }
 
-                    if (enableBorder)
+                    // Only draw outer border if NOT 4x6 photo paper (passport photos have individual photo borders)
+                    if (enableBorder && !is4x6)
                     {
                         using var pen = new Pen(Color.FromArgb(180, 180, 180), 2.0f);
                         e.Graphics.DrawRectangle(pen, destRect);

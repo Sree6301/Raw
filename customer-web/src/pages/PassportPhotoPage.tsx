@@ -27,7 +27,7 @@ import {
   RotateCw,
   ZoomIn,
   ZoomOut,
-  Sparkles,
+  Camera,
   CheckCircle2,
   Trash2,
   Edit2,
@@ -130,6 +130,7 @@ export function PassportPhotoPage() {
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 1) {
+      if (e.cancelable) e.preventDefault();
       setIsDragging(true);
       setDragStart({ x: e.touches[0].clientX - pan.x, y: e.touches[0].clientY - pan.y });
     }
@@ -137,6 +138,7 @@ export function PassportPhotoPage() {
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!isDragging || e.touches.length !== 1) return;
+    if (e.cancelable) e.preventDefault();
     setPan({
       x: e.touches[0].clientX - dragStart.x,
       y: e.touches[0].clientY - dragStart.y
@@ -219,29 +221,32 @@ export function PassportPhotoPage() {
     const cols = 4;
     const rows = 2;
 
-    // Each photo height on sheet: 510 px
-    // Each photo width on sheet: 510 * (35/45) = 396.67 px ~ 396 px
-    const photoH = 505;
-    const photoW = Math.round(photoH * PASSPORT_ASPECT_RATIO); // ~393 px
+    // Standard 35 mm x 45 mm passport photo aspect ratio (7:9 = 0.7778)
+    // Carefully calibrated to fit completely inside the HP Smart Tank 589 hardware printable area:
+    // HP 589 trailing paper feed margin is ~14.2 mm (~168 px at 300 DPI).
+    // Bottom margin is set to 170 px so bottom row chins are NEVER cropped!
+    // Left & right margins are 118 px (10 mm) so right-edge photos are NEVER cropped!
+    const photoH = 445;
+    const photoW = Math.round(photoH * PASSPORT_ASPECT_RATIO); // 346 px
 
-    // Total width occupied = 4 * 393 = 1572 px
-    // Leftover width = 1800 - 1572 = 228 px. 5 gaps = ~45 px per gap
-    const gapX = Math.round((sheetW - cols * photoW) / (cols + 1));
-    // Total height occupied = 2 * 505 = 1010 px
-    // Leftover height = 1200 - 1010 = 190 px. 3 gaps = ~63 px per gap
-    const gapY = Math.round((sheetH - rows * photoH) / (rows + 1));
+    const topMargin = 80;
+    const rowGap = 60;
+    // 80 + 445 + 60 + 445 + 170 = 1200 px exactly
+    const leftMargin = 118;
+    const colGap = 60;
+    // 118 + (4 * 346) + (3 * 60) + 118 = 118 + 1384 + 180 + 118 = 1800 px exactly
 
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
-        const x = gapX + c * (photoW + gapX);
-        const y = gapY + r * (photoH + gapY);
+        const x = leftMargin + c * (photoW + colGap);
+        const y = topMargin + r * (photoH + rowGap);
 
-        // Draw photo
+        // Draw passport photo
         ctx.drawImage(singlePhotoCanvas, x, y, photoW, photoH);
 
-        // Draw crisp fine border around photo (matching reference image 2)
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = '#334155'; // Dark slate/teal border
+        // Draw fine, crisp photo cut border around each individual photo (matching reference image 2)
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#334155'; // Dark slate border
         ctx.strokeRect(x, y, photoW, photoH);
       }
     }
@@ -343,7 +348,7 @@ export function PassportPhotoPage() {
                 mb: 2
               }}
             >
-              <Sparkles size={36} />
+              <Camera size={36} />
             </Box>
 
             <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a', mb: 1 }}>
@@ -422,6 +427,8 @@ export function PassportPhotoPage() {
                 bgcolor: '#0f172a',
                 cursor: isDragging ? 'grabbing' : 'grab',
                 userSelect: 'none',
+                WebkitUserSelect: 'none',
+                touchAction: 'none',
                 boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
                 border: '3px solid #0284c7'
               }}
@@ -521,25 +528,34 @@ export function PassportPhotoPage() {
 
             <Divider sx={{ my: 3 }} />
 
-            <Stack direction="row" spacing={2} justifyContent="space-between">
+            <Stack
+              direction={{ xs: 'column-reverse', sm: 'row' }}
+              spacing={2}
+              justifyContent="space-between"
+              sx={{ width: '100%' }}
+            >
               <Button
                 variant="outlined"
                 color="inherit"
+                fullWidth
                 startIcon={<Trash2 size={16} />}
                 onClick={() => setStep('UPLOAD')}
+                sx={{ width: { xs: '100%', sm: 'auto' } }}
               >
                 Change Photo
               </Button>
               <Button
                 variant="contained"
                 size="large"
+                fullWidth
                 startIcon={<CropIcon size={18} />}
                 onClick={handleSaveCropAndPreview}
                 sx={{
                   bgcolor: '#059669',
                   '&:hover': { bgcolor: '#047857' },
                   fontWeight: 700,
-                  px: 3
+                  px: 3,
+                  width: { xs: '100%', sm: 'auto' }
                 }}
               >
                 Save & Preview 8 Photos on 4×6
@@ -659,7 +675,12 @@ export function PassportPhotoPage() {
 
               <Divider sx={{ my: 2 }} />
 
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                justifyContent="space-between"
+                alignItems={{ xs: 'stretch', sm: 'center' }}
+                spacing={2}
+              >
                 <Box>
                   <Typography variant="caption" color="text.secondary">
                     Rate: ₹{ratePerSet.toFixed(2)} per sheet of 8 photos
@@ -669,12 +690,18 @@ export function PassportPhotoPage() {
                   </Typography>
                 </Box>
 
-                <Stack direction="row" spacing={1.5}>
+                <Stack
+                  direction={{ xs: 'column-reverse', sm: 'row' }}
+                  spacing={1.5}
+                  sx={{ width: { xs: '100%', sm: 'auto' } }}
+                >
                   <Button
                     variant="outlined"
                     startIcon={<Edit2 size={16} />}
                     onClick={() => setStep('CROP')}
                     disabled={isSubmitting}
+                    fullWidth
+                    sx={{ width: { xs: '100%', sm: 'auto' } }}
                   >
                     Change / Re-crop
                   </Button>
@@ -684,11 +711,13 @@ export function PassportPhotoPage() {
                     startIcon={isSubmitting ? <CircularProgress size={18} color="inherit" /> : <Printer size={18} />}
                     disabled={isSubmitting}
                     onClick={handleSubmitOrder}
+                    fullWidth
                     sx={{
                       bgcolor: '#0284c7',
                       '&:hover': { bgcolor: '#0369a1' },
                       fontWeight: 800,
-                      px: 3
+                      px: 3,
+                      width: { xs: '100%', sm: 'auto' }
                     }}
                   >
                     {isSubmitting ? 'Uploading Order...' : '🚀 Upload & Submit Print Request'}

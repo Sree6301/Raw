@@ -240,8 +240,8 @@ export function App() {
     setSettingsModalOrder(order);
     const existing = order.printSettings;
     const isScan = 'format' in order || order.serviceType === 'SCAN';
-    const isPhoto = !isScan && (order.images !== undefined || order.paperType?.includes('PHOTO'));
-    const isPassport = isPhoto && (order.photosPerSheet === 8 || order.photoType === 'PASSPORT_8');
+    const isPhoto = !isScan && (order.images !== undefined || order.paperType?.includes('PHOTO') || order.serviceType === 'PHOTO' || order.serviceType === 'PASSPORT');
+    const isPassport = (isPhoto && (order.photosPerSheet === 8 || order.photoType === 'PASSPORT_8')) || order.serviceType === 'PASSPORT';
 
     setCustomSettings({
       dpi: existing?.dpi || (isScan ? (order.resolution || 300) : isPhoto ? (pricing?.defaultPhotoDpi || 600) : (order.colorMode === 'COLOR' ? (pricing?.defaultColorDpi || 300) : (pricing?.defaultBwDpi || 300))),
@@ -252,7 +252,7 @@ export function App() {
       paperType: isPassport ? 'PHOTO_GLOSSY_4X6' : (existing?.paperType || order.paperType || 'NORMAL_A4'),
       paperSize: (isPassport || order.paperType?.includes('4X6')) ? '4X6' : (existing?.paperSize || 'A4'),
       colorMode: existing?.colorMode || order.colorMode || 'BW',
-      enableBorder: existing?.enableBorder ?? (isPassport ? true : false),
+      enableBorder: existing?.enableBorder ?? false,
       fitMode: existing?.fitMode || order.fitMode || 'FIT'
     });
     setDuplexPreviewPass('FRONT');
