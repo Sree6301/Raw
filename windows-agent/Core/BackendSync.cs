@@ -381,7 +381,11 @@ namespace SmartXeroxHub.Agent.Core
                 if (root.TryGetProperty("type", out var typeProp))
                 {
                     var eventType = typeProp.GetString();
-                    LoggingManager.Info($"[BackendSync] Real-time event received: {eventType}");
+                    // Suppress recurring AGENT_STATUS heartbeat spam from console log while preserving live sync
+                    if (eventType != "AGENT_STATUS")
+                    {
+                        LoggingManager.Info($"[BackendSync] Real-time event received: {eventType}");
+                    }
 
                     if (eventType == "ORDER_CREATED" || eventType == "PHOTO_ORDER_CREATED" || eventType == "SCAN_ORDER_CREATED" || eventType == "ORDER_UPDATED" || eventType == "PRINT_TRIGGERED" || eventType == "SCAN_ORDER_COMPLETED")
                     {

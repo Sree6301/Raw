@@ -221,20 +221,15 @@ export function PassportPhotoPage() {
     const cols = 4;
     const rows = 2;
 
-    // Standard 35 mm x 45 mm passport photo aspect ratio (7:9 = 0.7778)
-    // Carefully calibrated to fit completely inside the HP Smart Tank 589 hardware printable area:
-    // HP 589 trailing paper feed margin is ~14.2 mm (~168 px at 300 DPI).
-    // Bottom margin is set to 170 px so bottom row chins are NEVER cropped!
-    // Left & right margins are 118 px (10 mm) so right-edge photos are NEVER cropped!
-    const photoH = 445;
-    const photoW = Math.round(photoH * PASSPORT_ASPECT_RATIO); // 346 px
+    // Standard 4x6 inch paper in landscape = 1795 x 1205 px (or 1800 x 1200 px at 300 DPI)
+    // Matches exact dimensions of G:\Smart Xerox Hub\RAW_Inputs\Reference Size.png
+    const photoW = 397;
+    const photoH = 513;
 
-    const topMargin = 80;
+    const leftMargin = 25;
+    const colGap = 48;
+    const topMargin = 60;
     const rowGap = 60;
-    // 80 + 445 + 60 + 445 + 170 = 1200 px exactly
-    const leftMargin = 118;
-    const colGap = 60;
-    // 118 + (4 * 346) + (3 * 60) + 118 = 118 + 1384 + 180 + 118 = 1800 px exactly
 
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
@@ -244,9 +239,9 @@ export function PassportPhotoPage() {
         // Draw passport photo
         ctx.drawImage(singlePhotoCanvas, x, y, photoW, photoH);
 
-        // Draw fine, crisp photo cut border around each individual photo (matching reference image 2)
+        // Draw fine, crisp photo cut border around each individual photo (matching Reference Size.png)
         ctx.lineWidth = 2;
-        ctx.strokeStyle = '#334155'; // Dark slate border
+        ctx.strokeStyle = '#5ba6d1'; // Clean fine cyan border matching Reference Size.png
         ctx.strokeRect(x, y, photoW, photoH);
       }
     }

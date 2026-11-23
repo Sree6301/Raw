@@ -31,6 +31,7 @@ namespace SmartXeroxHub.Agent.UI
         private int _currentPage = 1;
         private int _totalPages = 1;
         private string _resolvedFilePath = string.Empty;
+        private bool _isInitialized = false;
 
         private readonly Dictionary<int, double> _pageScales = new();
         private readonly Dictionary<int, string> _pageOrientations = new();
@@ -39,10 +40,11 @@ namespace SmartXeroxHub.Agent.UI
 
         public PrintSettingsWindow(BackendOrderDto order, BackendSync backendSync, DeviceManager deviceManager)
         {
-            InitializeComponent();
             _order = order;
             _backendSync = backendSync;
             _deviceManager = deviceManager;
+
+            InitializeComponent();
 
             TxtOrderHeader.Text = $"PRINT SETTINGS • ORDER {_order.OrderNumber}";
             TxtOrderSub.Text = $"{_order.ServiceType} — {_order.OriginalFileName} ({_order.TotalPages} pages × {_order.Copies} copies)";
@@ -50,6 +52,7 @@ namespace SmartXeroxHub.Agent.UI
             _totalPages = Math.Max(1, _order.TotalPages);
 
             SetupServiceAdaptiveUI();
+            _isInitialized = true;
             _ = InitializePreviewAsync();
         }
 
@@ -159,6 +162,7 @@ namespace SmartXeroxHub.Agent.UI
 
         private void UpdateLivePreview()
         {
+            if (!_isInitialized || _order == null) return;
             try
             {
                 if (string.IsNullOrEmpty(_resolvedFilePath) || !File.Exists(_resolvedFilePath))
@@ -308,6 +312,7 @@ namespace SmartXeroxHub.Agent.UI
 
         private void SliderScale_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
+            if (!_isInitialized || _order == null) return;
             if (TxtScaleLabel != null)
             {
                 TxtScaleLabel.Text = $"Zoom / Scaling: {SliderScale.Value:0}%";
@@ -334,9 +339,10 @@ namespace SmartXeroxHub.Agent.UI
 
         private void OnSettingChanged(object sender, RoutedEventArgs e)
         {
+            if (!_isInitialized || _order == null) return;
             if (RadioOrientScopeCurrent?.IsChecked == true)
             {
-                _pageOrientations[_currentPage] = RadioOrientLandscape.IsChecked == true ? "LANDSCAPE" : "PORTRAIT";
+                _pageOrientations[_currentPage] = RadioOrientLandscape?.IsChecked == true ? "LANDSCAPE" : "PORTRAIT";
             }
             else
             {
@@ -348,6 +354,7 @@ namespace SmartXeroxHub.Agent.UI
 
         private void ComboPhotoPaperType_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (!_isInitialized || _order == null) return;
             UpdateLivePreview();
         }
 
