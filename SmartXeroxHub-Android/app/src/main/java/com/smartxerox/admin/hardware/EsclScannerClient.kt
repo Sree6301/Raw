@@ -78,8 +78,8 @@ class EsclScannerClient(private val printerIp: String, private val port: Int = 8
             val downloadReq = Request.Builder().url(downloadUrl).get().build()
             val downloadResp = client.newCall(downloadReq).execute()
 
-            if (downloadResp.isSuccessful && downloadResp.body() != null) {
-                val stream: InputStream = downloadResp.body()!!.byteStream()
+            if (downloadResp.isSuccessful && downloadResp.body != null) {
+                val stream: InputStream = downloadResp.body!!.byteStream()
                 val bitmap = BitmapFactory.decodeStream(stream)
                 if (bitmap != null) {
                     Result.success(bitmap)

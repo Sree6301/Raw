@@ -72,3 +72,18 @@
 - **Wi-Fi IPP (Port 631)**: Supported via `SmartTankPrintAdapter.kt` and Android `PrintManager`.
 - **USB OTG (Class 7 Bulk)**: Supported via `UsbPrinterController.kt` and `device_filter.xml`.
 - **Flatbed eSCL Scanner (Port 8080/80)**: Supported via `EsclScannerClient.kt`.
+
+---
+
+## 5. Compiled Artifact Verification
+
+- **Artifact Path**: `SmartXeroxHub-Android/builds/debug/SmartXeroxHub-Admin-Debug.apk`
+- **File Size**: `30,277,998 bytes` (28.87 MB)
+- **SHA-256 Checksum**: `E1BCF02E258938AE3E7103F4638E7F512A31E2A3447817A8EBFD20070F2DA744`
+- **Package ID**: `com.smartxerox.admin.debug`
+- **Version**: Code `1`, Name `1.0.0`
+- **Min SDK**: `26` (Android 8.0 Oreo)
+- **Target / Compile SDK**: `34` (Android 14 UpsideDownCake)
+- **Launchable Activity**: `com.smartxerox.admin.ui.MainActivity`
+- **Compilation Status**: **SUCCESSFUL (0 errors)**
+

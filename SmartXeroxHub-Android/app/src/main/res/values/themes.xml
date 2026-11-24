@@ -1,5 +1,5 @@
 <resources>
-    <style name="Theme.SmartXeroxHub" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.SmartXeroxHub" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="android:statusBarColor">#0B0F19</item>
         <item name="android:navigationBarColor">#0B0F19</item>
         <item name="android:windowLightStatusBar">false</item>
