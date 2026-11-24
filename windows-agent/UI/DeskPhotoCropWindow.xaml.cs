@@ -27,6 +27,7 @@ namespace SmartXeroxHub.Agent.UI
         private Bitmap? _sourceBitmap;
         private bool _isDragging;
         private System.Windows.Point _lastMousePos;
+        private bool _isInitialized = false;
         private double _panX = 0;
         private double _panY = 0;
         private double _zoom = 1.0;
@@ -45,9 +46,20 @@ namespace SmartXeroxHub.Agent.UI
             Directory.CreateDirectory(_outputDir);
 
             InitializeComponent();
+            _isInitialized = true;
 
             ConfigureModeUI();
             LoadSourceImage();
+
+            Loaded += (s, e) =>
+            {
+                var workArea = SystemParameters.WorkArea;
+                if (this.Width > workArea.Width) this.Width = Math.Max(700, workArea.Width * 0.92);
+                if (this.Height > workArea.Height) this.Height = Math.Max(500, workArea.Height * 0.92);
+                this.Left = workArea.Left + Math.Max(0, (workArea.Width - this.Width) / 2);
+                this.Top = workArea.Top + Math.Max(0, (workArea.Height - this.Height) / 2);
+                ResetView();
+            };
         }
 
         private void ConfigureModeUI()
@@ -116,6 +128,8 @@ namespace SmartXeroxHub.Agent.UI
 
         private void UpdateCropFrameGeometry()
         {
+            if (!_isInitialized || CanvasInteractive == null || BorderCropFrame == null) return;
+
             double canvasW = CanvasInteractive.ActualWidth;
             double canvasH = CanvasInteractive.ActualHeight;
             if (canvasW <= 10 || canvasH <= 10) return;
@@ -131,8 +145,8 @@ namespace SmartXeroxHub.Agent.UI
             }
             else
             {
-                bool isA4 = (ComboPaperSize.SelectedItem as ComboBoxItem)?.Tag?.ToString() == "PHOTO_A4";
-                bool isLandscape = RadioLandscape.IsChecked == true;
+                bool isA4 = (ComboPaperSize?.SelectedItem as ComboBoxItem)?.Tag?.ToString() == "PHOTO_A4";
+                bool isLandscape = RadioLandscape?.IsChecked == true;
 
                 double ratio = isA4 ? (210.0 / 297.0) : (101.6 / 152.4);
                 if (isLandscape) ratio = 1.0 / ratio;
@@ -158,7 +172,7 @@ namespace SmartXeroxHub.Agent.UI
 
         private void UpdateImageTransform()
         {
-            if (ImgDisplay.Source == null) return;
+            if (!_isInitialized || ImgDisplay == null || ImgDisplay.Source == null || CanvasInteractive == null || BorderCropFrame == null || TransformScale == null || TransformRotate == null || TransformTranslate == null) return;
 
             double canvasW = CanvasInteractive.ActualWidth;
             double canvasH = CanvasInteractive.ActualHeight;
@@ -190,13 +204,14 @@ namespace SmartXeroxHub.Agent.UI
 
         private void CanvasInteractive_SizeChanged(object sender, SizeChangedEventArgs e)
         {
+            if (!_isInitialized) return;
             UpdateCropFrameGeometry();
             UpdateImageTransform();
         }
 
         private void CanvasInteractive_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            if (e.LeftButton == MouseButtonState.Pressed)
+            if (e.LeftButton == MouseButtonState.Pressed && CanvasInteractive != null)
             {
                 _isDragging = true;
                 _lastMousePos = e.GetPosition(CanvasInteractive);
@@ -206,7 +221,7 @@ namespace SmartXeroxHub.Agent.UI
 
         private void CanvasInteractive_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
         {
-            if (_isDragging && e.LeftButton == MouseButtonState.Pressed)
+            if (_isDragging && e.LeftButton == MouseButtonState.Pressed && CanvasInteractive != null)
             {
                 var cur = e.GetPosition(CanvasInteractive);
                 double dx = cur.X - _lastMousePos.X;
@@ -224,18 +239,20 @@ namespace SmartXeroxHub.Agent.UI
             if (_isDragging)
             {
                 _isDragging = false;
-                CanvasInteractive.ReleaseMouseCapture();
+                CanvasInteractive?.ReleaseMouseCapture();
             }
         }
 
         private void CanvasInteractive_MouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
         {
+            if (SliderZoom == null) return;
             double delta = e.Delta > 0 ? 0.1 : -0.1;
             SliderZoom.Value = Math.Clamp(SliderZoom.Value + delta, SliderZoom.Minimum, SliderZoom.Maximum);
         }
 
         private void SliderZoom_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
+            if (!_isInitialized || SliderZoom == null) return;
             _zoom = SliderZoom.Value;
             if (TxtZoomLabel != null)
                 TxtZoomLabel.Text = $"Zoom: {_zoom * 100:0}%";
@@ -244,17 +261,20 @@ namespace SmartXeroxHub.Agent.UI
 
         private void BtnRotate_Click(object sender, RoutedEventArgs e)
         {
+            if (!_isInitialized) return;
             _rotation = (_rotation + 90) % 360;
             UpdateImageTransform();
         }
 
         private void BtnReset_Click(object sender, RoutedEventArgs e)
         {
+            if (!_isInitialized) return;
             ResetView();
         }
 
         private void OnPhotoSettingChanged(object sender, RoutedEventArgs e)
         {
+            if (!_isInitialized) return;
             UpdateCropFrameGeometry();
             UpdateImageTransform();
         }
@@ -285,8 +305,8 @@ namespace SmartXeroxHub.Agent.UI
                 }
                 else
                 {
-                    bool isA4 = (ComboPaperSize.SelectedItem as ComboBoxItem)?.Tag?.ToString() == "PHOTO_A4";
-                    bool isLandscape = RadioLandscape.IsChecked == true;
+                    bool isA4 = (ComboPaperSize?.SelectedItem as ComboBoxItem)?.Tag?.ToString() == "PHOTO_A4";
+                    bool isLandscape = RadioLandscape?.IsChecked == true;
                     if (isA4)
                     {
                         outW = isLandscape ? 3508 : 2480;
@@ -357,9 +377,9 @@ namespace SmartXeroxHub.Agent.UI
                     croppedBmp.Save(savePath, ImageFormat.Jpeg);
                     ResultFilePath = savePath;
 
-                    IsBorderEnabled = RadioBorder.IsChecked == true;
-                    PaperType = (ComboPaperSize.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "PHOTO_4X6";
-                    Orientation = RadioLandscape.IsChecked == true ? "LANDSCAPE" : "PORTRAIT";
+                    IsBorderEnabled = RadioBorder?.IsChecked == true;
+                    PaperType = (ComboPaperSize?.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "PHOTO_4X6";
+                    Orientation = RadioLandscape?.IsChecked == true ? "LANDSCAPE" : "PORTRAIT";
                 }
 
                 DialogResult = true;

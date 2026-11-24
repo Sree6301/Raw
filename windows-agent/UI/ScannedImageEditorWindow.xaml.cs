@@ -28,6 +28,15 @@ namespace SmartXeroxHub.Agent.UI
             TxtTitle.Text = $"🔍 SCANNED PAGE {_pageNumber} EDITOR";
             TxtSubtitle.Text = Path.GetFileName(_filePath);
 
+            Loaded += (s, e) =>
+            {
+                var workArea = SystemParameters.WorkArea;
+                if (this.Width > workArea.Width) this.Width = Math.Max(700, workArea.Width * 0.94);
+                if (this.Height > workArea.Height) this.Height = Math.Max(480, workArea.Height * 0.94);
+                this.Left = workArea.Left + Math.Max(0, (workArea.Width - this.Width) / 2);
+                this.Top = workArea.Top + Math.Max(0, (workArea.Height - this.Height) / 2);
+            };
+
             LoadImage();
         }
 

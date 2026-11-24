@@ -133,6 +133,12 @@ namespace SmartXeroxHub.Agent
 
             Loaded += async (s, e) =>
             {
+                var workArea = SystemParameters.WorkArea;
+                if (this.Width > workArea.Width) this.Width = Math.Max(850, workArea.Width * 0.96);
+                if (this.Height > workArea.Height) this.Height = Math.Max(540, workArea.Height * 0.96);
+                this.Left = workArea.Left + Math.Max(0, (workArea.Width - this.Width) / 2);
+                this.Top = workArea.Top + Math.Max(0, (workArea.Height - this.Height) / 2);
+
                 ListPrinters.ItemsSource = _deviceManager.DiscoveredPrinters;
                 await RefreshOrdersAsync();
                 LoadPricingAsync();

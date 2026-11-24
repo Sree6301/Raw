@@ -2,8 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="SMART XEROX HUB — Professional Xerox, Photo Printing &amp; Flatbed Scanning Station"
-        Height="780" Width="1180"
-        MinHeight="680" MinWidth="980"
+        Height="700" Width="1100"
+        MinHeight="540" MinWidth="850"
         WindowStartupLocation="CenterScreen"
         Background="#F1F5F9">
 
@@ -14,7 +14,7 @@
             <!-- Main Categorized Tab Control -->
             <RowDefinition Height="*"/>
             <!-- Bottom Status & Log Output Bar -->
-            <RowDefinition Height="130"/>
+            <RowDefinition Height="100" MinHeight="60"/>
         </Grid.RowDefinitions>
 
         <!-- HEADER BAR WITH LOGO AND HARDWARE PILL -->
