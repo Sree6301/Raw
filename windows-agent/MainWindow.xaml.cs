@@ -171,6 +171,18 @@ namespace SmartXeroxHub.Agent
             await RefreshOrdersAsync();
         }
 
+        private bool _sortAscending = false;
+
+        private void BtnSortDirection_Click(object sender, RoutedEventArgs e)
+        {
+            _sortAscending = !_sortAscending;
+            if (BtnSortDirection != null)
+            {
+                BtnSortDirection.Content = _sortAscending ? "▲ Asc" : "▼ Desc";
+            }
+            ApplyFilterAndSort();
+        }
+
         private void ComboSortBy_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             ApplyFilterAndSort();
@@ -198,16 +210,25 @@ namespace SmartXeroxHub.Agent
                     o.Status.Contains(query, StringComparison.OrdinalIgnoreCase));
             }
 
-            // Sorting
-            var sortIdx = ComboSortBy?.SelectedIndex ?? 0;
-            filtered = sortIdx switch
+            // Sorting: Completed, Pending, Time, Price
+            var tag = (ComboSortBy?.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "TIME";
+            filtered = tag switch
             {
-                0 => filtered.OrderByDescending(o => o.CreatedAt), // Newest First
-                1 => filtered.OrderBy(o => o.CreatedAt),           // Oldest First
-                2 => filtered.OrderBy(o => o.Status == "COMPLETED" || o.Status == "DOWNLOAD_AVAILABLE" ? 1 : 0).ThenByDescending(o => o.CreatedAt), // Pending First
-                3 => filtered.OrderByDescending(o => o.CalculatedPrice), // Price High to Low
-                4 => filtered.OrderBy(o => o.CalculatedPrice),           // Price Low to High
-                _ => filtered.OrderByDescending(o => o.CreatedAt)
+                "TIME" => _sortAscending
+                    ? filtered.OrderBy(o => o.CreatedAt)
+                    : filtered.OrderByDescending(o => o.CreatedAt),
+                "PENDING" => _sortAscending
+                    ? filtered.OrderBy(o => (o.Status == "COMPLETE" || o.Status == "COMPLETED" || o.Status == "DOWNLOAD_AVAILABLE") ? 1 : 0).ThenByDescending(o => o.CreatedAt)
+                    : filtered.OrderBy(o => (o.Status == "COMPLETE" || o.Status == "COMPLETED" || o.Status == "DOWNLOAD_AVAILABLE") ? 0 : 1).ThenByDescending(o => o.CreatedAt),
+                "COMPLETED" => _sortAscending
+                    ? filtered.OrderBy(o => (o.Status == "COMPLETE" || o.Status == "COMPLETED" || o.Status == "DOWNLOAD_AVAILABLE") ? 0 : 1).ThenByDescending(o => o.CreatedAt)
+                    : filtered.OrderBy(o => (o.Status == "COMPLETE" || o.Status == "COMPLETED" || o.Status == "DOWNLOAD_AVAILABLE") ? 1 : 0).ThenByDescending(o => o.CreatedAt),
+                "PRICE" => _sortAscending
+                    ? filtered.OrderBy(o => o.CalculatedPrice)
+                    : filtered.OrderByDescending(o => o.CalculatedPrice),
+                _ => _sortAscending
+                    ? filtered.OrderBy(o => o.CreatedAt)
+                    : filtered.OrderByDescending(o => o.CreatedAt)
             };
 
             if (GridOrders != null)
@@ -297,10 +318,16 @@ namespace SmartXeroxHub.Agent
                     // Duplex multi-step execution right inside the order row
                     if (order.DuplexStage == "AWAITING_PAPER_REVERSAL" || order.Status == "AWAITING_PAPER_REVERSAL")
                     {
-                        // Step 2 & 3: Confirm paper reversal and spool even pages (reverse pass)
+                        // Step 2: Confirm paper reversal and spool even pages (reverse pass)
                         var res = MessageBox.Show(
-                            $"⚠️ DUPLEX STEP 2 — PAPER REVERSAL CONFIRMATION:\n\nOrder '{order.OrderNumber}':\n1. Did you collect the printed odd sheets from the front output tray?\n2. Did you flip the stack horizontally (keeping Front Top at Back Top)?\n3. Did you insert the flipped stack into the rear tray of HP Smart Tank 589?\n\nClick 'Yes' to immediately spool the other side (even pages).",
-                            "Confirm Paper Reversal for Step 3",
+                            $"📄 MANUAL DUPLEX — STEP 2 OF 2: PRINT BACK SIDE (EVEN PAGES)\n\n" +
+                            $"Order #{order.OrderNumber} ({order.TotalPages} pages × {order.Copies} copy):\n\n" +
+                            $"👉 Paper Check:\n" +
+                            $"1. Did you collect the printed odd sheets from the front exit tray?\n" +
+                            $"2. Did you flip the stack horizontally (keep top edge at the top)?\n" +
+                            $"3. Did you place the stack back into the rear paper tray of '{printerName}'?\n\n" +
+                            $"Click 'Yes' to print the other side (even pages).\nClick 'No' if you need more time to load paper.",
+                            "Manual Duplex Step 2: Confirm Paper Reversal",
                             MessageBoxButton.YesNo,
                             MessageBoxImage.Question
                         );
@@ -315,16 +342,25 @@ namespace SmartXeroxHub.Agent
                             {
                                 var localFile = await _backendSync.EnsureLocalFileAsync(order.FileUrl, order.OriginalFileName);
                                 duplexJob = _duplexProcessor.PrepareDuplexFiles(order.Id, order.OrderNumber, localFile, order.Copies, printerName, order.PrintSettings?.PagesPerSheet ?? 1, order.PrintSettings);
+                                _recoveryManager.TrackDuplexJob(duplexJob);
+                                _activeDuplexJob = duplexJob;
                             }
 
-                            _duplexProcessor.PrintSecondSide(duplexJob);
+                            _duplexProcessor.ConfirmPaperReversed(duplexJob);
+                            bool secondSidePrinted = _duplexProcessor.PrintSecondSide(duplexJob);
+                            if (!secondSidePrinted)
+                            {
+                                MessageBox.Show($"Failed to spool second side (even pages) to '{printerName}'. Please ensure printer is online and tray has paper.", "Duplex Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                                return;
+                            }
+
                             await _backendSync.UpdateDuplexStageOnBackendAsync(order.Id, "COMPLETED");
                             await _backendSync.UpdateOrderStatusOnBackendAsync(order.Id, "DOCUMENT", "COMPLETE");
                             order.DuplexStage = "COMPLETED";
                             order.Status = "COMPLETE";
 
                             MessageBox.Show(
-                                $"Duplex document '{order.OrderNumber}' printed successfully on both sides!\n\nAll {order.TotalPages} pages delivered cleanly without errors.",
+                                $"✅ Duplex document '{order.OrderNumber}' printed successfully on both sides!\n\nAll {order.TotalPages} pages delivered cleanly to '{printerName}'.",
                                 "Duplex Finished",
                                 MessageBoxButton.OK,
                                 MessageBoxImage.Information
@@ -358,12 +394,24 @@ namespace SmartXeroxHub.Agent
                             _recoveryManager.TrackDuplexJob(duplexJob);
                             _activeDuplexJob = duplexJob;
 
-                            _duplexProcessor.PrintFirstSide(duplexJob);
+                            bool firstSidePrinted = _duplexProcessor.PrintFirstSide(duplexJob);
+                            if (!firstSidePrinted)
+                            {
+                                MessageBox.Show($"Failed to spool first side (odd pages) to '{printerName}'. Please check printer status.", "Print Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                                return;
+                            }
+
                             await _backendSync.UpdateDuplexStageOnBackendAsync(order.Id, "AWAITING_PAPER_REVERSAL");
                             order.DuplexStage = "AWAITING_PAPER_REVERSAL";
 
                             MessageBox.Show(
-                                $"▶ Step 1 Complete: Front side odd pages sent to '{printerName}'.\n\n👉 OPERATOR ACTION REQUIRED:\n1. Collect the printed pages from output tray.\n2. Flip the paper stack horizontally (Front Top remains Back Top).\n3. Re-insert the stack into the rear tray.\n4. Click '🔄 2. Page Reversed (Confirm)' on this row.",
+                                $"📄 MANUAL DUPLEX — STEP 1 OF 2 COMPLETE!\n\n" +
+                                $"Front side (odd pages) sent to '{printerName}'.\n\n" +
+                                $"👉 Next Operator Steps:\n" +
+                                $"1. Wait for all odd pages to finish in the front output tray.\n" +
+                                $"2. Take the stack, flip it horizontally (Front Top remains Back Top).\n" +
+                                $"3. Place the flipped stack back into the rear paper tray.\n" +
+                                $"4. Click '🔄 2. Page Reversed (Confirm)' on this order row to print the back side.",
                                 "Step 1 Finished — Flip Paper Stack",
                                 MessageBoxButton.OK,
                                 MessageBoxImage.Information
@@ -853,7 +901,26 @@ namespace SmartXeroxHub.Agent
             };
             if (dlg.ShowDialog() == true)
             {
-                TxtDeskPhotoPath.Text = dlg.FileName;
+                var cropWin = new DeskPhotoCropWindow(dlg.FileName, DeskPhotoCropMode.PHOTO, _userUploadsDir) { Owner = this };
+                if (cropWin.ShowDialog() == true && !string.IsNullOrEmpty(cropWin.ResultFilePath))
+                {
+                    TxtDeskPhotoPath.Text = cropWin.ResultFilePath;
+                    if (cropWin.PaperType == "PHOTO_A4") RadioPhotoA4.IsChecked = true;
+                    else RadioPhoto4x6.IsChecked = true;
+
+                    if (cropWin.IsBorderEnabled) RadioDeskPhotoWithBorder.IsChecked = true;
+                    else RadioDeskPhotoBorderless.IsChecked = true;
+
+                    var bi = new BitmapImage();
+                    bi.BeginInit();
+                    bi.CacheOption = BitmapCacheOption.OnLoad;
+                    bi.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+                    bi.UriSource = new Uri(cropWin.ResultFilePath);
+                    bi.EndInit();
+
+                    ImgDeskPhotoPreview.Source = bi;
+                    TxtDeskPhotoEmpty.Visibility = Visibility.Collapsed;
+                }
             }
         }
 
@@ -940,18 +1007,23 @@ namespace SmartXeroxHub.Agent
             {
                 try
                 {
-                    TxtDeskPassportPath.Text = dlg.FileName;
-                    _deskPassportSheetPath = PhotoProcessor.BuildPassport8UpSheet(dlg.FileName, _userUploadsDir);
+                    var cropWin = new DeskPhotoCropWindow(dlg.FileName, DeskPhotoCropMode.PASSPORT, _userUploadsDir) { Owner = this };
+                    if (cropWin.ShowDialog() == true && !string.IsNullOrEmpty(cropWin.ResultFilePath))
+                    {
+                        TxtDeskPassportPath.Text = dlg.FileName;
+                        _deskPassportSheetPath = cropWin.ResultFilePath;
 
-                    var bi = new BitmapImage();
-                    bi.BeginInit();
-                    bi.CacheOption = BitmapCacheOption.OnLoad;
-                    bi.UriSource = new Uri(_deskPassportSheetPath);
-                    bi.EndInit();
+                        var bi = new BitmapImage();
+                        bi.BeginInit();
+                        bi.CacheOption = BitmapCacheOption.OnLoad;
+                        bi.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+                        bi.UriSource = new Uri(_deskPassportSheetPath);
+                        bi.EndInit();
 
-                    ImgDeskPassportPreview.Source = bi;
-                    TxtDeskPassportEmpty.Visibility = Visibility.Collapsed;
-                    LoggingManager.Info($"[DeskPassport] Generated calibrated 8-Up passport sheet: {_deskPassportSheetPath}");
+                        ImgDeskPassportPreview.Source = bi;
+                        TxtDeskPassportEmpty.Visibility = Visibility.Collapsed;
+                        LoggingManager.Info($"[DeskPassport] Generated calibrated 8-Up passport sheet from crop: {_deskPassportSheetPath}");
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -1147,18 +1219,21 @@ namespace SmartXeroxHub.Agent
             {
                 try
                 {
-                    using (var img = System.Drawing.Image.FromFile(item.FilePath))
-                    {
-                        img.RotateFlip(System.Drawing.RotateFlipType.Rotate90FlipNone);
-                        img.Save(item.FilePath + ".tmp", System.Drawing.Imaging.ImageFormat.Jpeg);
-                    }
-                    File.Delete(item.FilePath);
-                    File.Move(item.FilePath + ".tmp", item.FilePath);
+                    byte[] bytes = File.ReadAllBytes(item.FilePath);
+                    using var inMs = new MemoryStream(bytes);
+                    using var img = System.Drawing.Image.FromStream(inMs);
+                    img.RotateFlip(System.Drawing.RotateFlipType.Rotate90FlipNone);
+
+                    using var outMs = new MemoryStream();
+                    img.Save(outMs, System.Drawing.Imaging.ImageFormat.Jpeg);
+                    byte[] newBytes = outMs.ToArray();
+                    File.WriteAllBytes(item.FilePath, newBytes);
 
                     var bi = new BitmapImage();
                     bi.BeginInit();
                     bi.CacheOption = BitmapCacheOption.OnLoad;
-                    bi.UriSource = new Uri(item.FilePath);
+                    bi.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+                    bi.StreamSource = new MemoryStream(newBytes);
                     bi.EndInit();
 
                     item.Thumbnail = bi;
@@ -1177,6 +1252,58 @@ namespace SmartXeroxHub.Agent
                 catch (Exception ex)
                 {
                     MessageBox.Show($"Could not rotate image: {ex.Message}", "Rotate Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+        }
+
+        private void BtnPageEdit_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is ScannedPageItem item && File.Exists(item.FilePath))
+            {
+                OpenScannedPageEditor(item);
+            }
+        }
+
+        private void BtnOpenActiveInEditor_Click(object sender, RoutedEventArgs e)
+        {
+            if (ListScannedPages.SelectedItem is ScannedPageItem item && File.Exists(item.FilePath))
+            {
+                OpenScannedPageEditor(item);
+            }
+            else if (_scannedGalleryItems.Count > 0)
+            {
+                OpenScannedPageEditor(_scannedGalleryItems[0]);
+            }
+            else
+            {
+                MessageBox.Show("No scanned page available to edit. Please scan a document first.", "Notice", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void OpenScannedPageEditor(ScannedPageItem item)
+        {
+            var win = new ScannedImageEditorWindow(item.FilePath, item.PageNumber) { Owner = this };
+            if (win.ShowDialog() == true && win.ChangesSaved)
+            {
+                byte[] bytes = File.ReadAllBytes(item.FilePath);
+                var bi = new BitmapImage();
+                bi.BeginInit();
+                bi.CacheOption = BitmapCacheOption.OnLoad;
+                bi.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+                bi.StreamSource = new MemoryStream(bytes);
+                bi.EndInit();
+
+                item.Thumbnail = bi;
+                ImgScanPreview.Source = bi;
+                int idx = _scannedGalleryItems.IndexOf(item);
+                if (idx >= 0)
+                {
+                    _scannedGalleryItems[idx] = new ScannedPageItem
+                    {
+                        FilePath = item.FilePath,
+                        PageNumber = item.PageNumber,
+                        Thumbnail = bi
+                    };
                 }
             }
         }

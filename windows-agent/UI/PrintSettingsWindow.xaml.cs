@@ -35,6 +35,7 @@ namespace SmartXeroxHub.Agent.UI
 
         private readonly Dictionary<int, double> _pageScales = new();
         private readonly Dictionary<int, string> _pageOrientations = new();
+        private bool _isNavigating = false;
 
         public bool ShouldPrintImmediately { get; private set; }
         public PrintJobOptions? SelectedOptions { get; private set; }
@@ -51,6 +52,15 @@ namespace SmartXeroxHub.Agent.UI
             TxtOrderSub.Text = $"{_order.ServiceType} — {_order.OriginalFileName} ({_order.TotalPages} pages × {_order.Copies} copies)";
 
             _totalPages = Math.Max(1, _order.TotalPages);
+
+            if (_order.PrintSettings?.PageOrientations != null)
+            {
+                foreach (var kv in _order.PrintSettings.PageOrientations) _pageOrientations[kv.Key] = kv.Value;
+            }
+            if (_order.PrintSettings?.PageScales != null)
+            {
+                foreach (var kv in _order.PrintSettings.PageScales) _pageScales[kv.Key] = kv.Value;
+            }
 
             SetupServiceAdaptiveUI();
             _isInitialized = true;
@@ -89,11 +99,13 @@ namespace SmartXeroxHub.Agent.UI
                     TxtPhotoSub.Text = "Pre-configured for standard 4×6 inch HP Glossy Photo Paper";
                     SelectComboTag(ComboPhotoPaperType, "PHOTO_4X6");
                     ComboPhotoPaperType.IsEnabled = false; // Locked to 4x6
+                    if (PanelPhotoBorderFraming != null) PanelPhotoBorderFraming.Visibility = Visibility.Collapsed;
                 }
                 else
                 {
                     string pType = (_order.PaperType ?? "").Contains("A4", StringComparison.OrdinalIgnoreCase) ? "PHOTO_A4" : "PHOTO_4X6";
                     SelectComboTag(ComboPhotoPaperType, pType);
+                    if (PanelPhotoBorderFraming != null) PanelPhotoBorderFraming.Visibility = Visibility.Visible;
                 }
 
                 if (_order.ColorMode == "BW") RadioPhotoBw.IsChecked = true;
@@ -188,8 +200,6 @@ namespace SmartXeroxHub.Agent.UI
 
                 if (_order.IsPassport8 || _order.ServiceType == "PHOTO")
                 {
-                    BorderVisualOverlay.Visibility = Visibility.Collapsed;
-
                     using var fs = new FileStream(_resolvedFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                     using var bmp = new Bitmap(fs);
                     bool isLandscape = _order.IsPassport8 || bmp.Width > bmp.Height;
@@ -238,12 +248,20 @@ namespace SmartXeroxHub.Agent.UI
                         PreviewScaleTransform.ScaleX = scalePercent / 100.0;
                         PreviewScaleTransform.ScaleY = scalePercent / 100.0;
                     }
+                    if (PreviewOverflowScaleTransform != null)
+                    {
+                        PreviewOverflowScaleTransform.ScaleX = scalePercent / 100.0;
+                        PreviewOverflowScaleTransform.ScaleY = scalePercent / 100.0;
+                    }
 
                     BorderSheetFrame.Width = isLandscape ? 380 : 270;
                     BorderSheetFrame.Height = isLandscape ? 270 : 380;
 
                     bool enableBorder = (_order.ServiceType == "PHOTO" || _order.IsPassport8) ? (RadioPhotoWithBorder.IsChecked == true) : (ChkDocBorder.IsChecked == true);
-                    BorderVisualOverlay.Visibility = enableBorder ? Visibility.Visible : Visibility.Collapsed;
+                    if (GridPreviewCanvas != null)
+                    {
+                        GridPreviewCanvas.Margin = enableBorder ? new Thickness(14) : new Thickness(0);
+                    }
 
                     if (nup == 1)
                     {
@@ -306,6 +324,11 @@ namespace SmartXeroxHub.Agent.UI
                         TxtPreviewDimensions.Text = $"A4 N-Up Sheet ({nup} pages/sheet • {sheetW} × {sheetH} px) • {GetSelectedTag(ComboDocDpi)} DPI";
                     }
 
+                    if (ImgPreviewOverflow != null)
+                    {
+                        ImgPreviewOverflow.Source = (scalePercent > 100.0) ? ImgPreview.Source : null;
+                    }
+
                     TxtPreviewStatus.Text = $"{scalePercent:0}% Zoom • {orient} • {(enableBorder ? "Border ON" : "No Border")}";
                 }
             }
@@ -354,12 +377,30 @@ namespace SmartXeroxHub.Agent.UI
             }
         }
 
+        private void NavigateToPage(int newPage)
+        {
+            _currentPage = Math.Clamp(newPage, 1, _totalPages);
+            _isNavigating = true;
+
+            // Load orientation for this page: if set, select it; otherwise default to Portrait
+            string orient = _pageOrientations.TryGetValue(_currentPage, out var o) ? o : "PORTRAIT";
+            if (RadioOrientLandscape != null) RadioOrientLandscape.IsChecked = (orient == "LANDSCAPE");
+            if (RadioOrientPortrait != null) RadioOrientPortrait.IsChecked = (orient == "PORTRAIT");
+
+            // Load zoom scale for this page: if set, restore it; otherwise default to 100%
+            double scale = _pageScales.TryGetValue(_currentPage, out var s) ? s : 100.0;
+            if (SliderScale != null) SliderScale.Value = scale;
+            if (TxtScaleLabel != null) TxtScaleLabel.Text = $"Zoom / Scaling: {scale:0}%";
+
+            _isNavigating = false;
+            UpdateLivePreview();
+        }
+
         private void BtnPrevPage_Click(object sender, RoutedEventArgs e)
         {
             if (_currentPage > 1)
             {
-                _currentPage--;
-                UpdateLivePreview();
+                NavigateToPage(_currentPage - 1);
             }
         }
 
@@ -367,50 +408,33 @@ namespace SmartXeroxHub.Agent.UI
         {
             if (_currentPage < _totalPages)
             {
-                _currentPage++;
-                UpdateLivePreview();
+                NavigateToPage(_currentPage + 1);
             }
         }
 
         private void SliderScale_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (!_isInitialized || _order == null) return;
+            if (!_isInitialized || _isNavigating || _order == null) return;
             if (TxtScaleLabel != null)
             {
                 TxtScaleLabel.Text = $"Zoom / Scaling: {SliderScale.Value:0}%";
             }
 
-            if (RadioScaleScopeCurrent?.IsChecked == true)
-            {
-                _pageScales[_currentPage] = SliderScale.Value;
-            }
-            else
-            {
-                _pageScales.Clear();
-            }
-
+            _pageScales[_currentPage] = SliderScale.Value;
             UpdateLivePreview();
         }
 
         private void BtnResetZoom_Click(object sender, RoutedEventArgs e)
         {
-            SliderScale.Value = 100;
-            _pageScales.Clear();
+            if (SliderScale != null) SliderScale.Value = 100;
+            _pageScales[_currentPage] = 100;
             UpdateLivePreview();
         }
 
         private void OnSettingChanged(object sender, RoutedEventArgs e)
         {
-            if (!_isInitialized || _order == null) return;
-            if (RadioOrientScopeCurrent?.IsChecked == true)
-            {
-                _pageOrientations[_currentPage] = RadioOrientLandscape?.IsChecked == true ? "LANDSCAPE" : "PORTRAIT";
-            }
-            else
-            {
-                _pageOrientations.Clear();
-            }
-
+            if (!_isInitialized || _isNavigating || _order == null) return;
+            _pageOrientations[_currentPage] = RadioOrientLandscape?.IsChecked == true ? "LANDSCAPE" : "PORTRAIT";
             UpdateLivePreview();
         }
 

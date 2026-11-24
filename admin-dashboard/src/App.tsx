@@ -97,11 +97,11 @@ export function App() {
   const [pricing, setPricing] = useState<ShopPricingConfig | null>(null);
   const [agentStatus, setAgentStatus] = useState<{ connected: boolean; agentName: string; activePrinter: string; port: string; lastSeen: string } | null>(null);
 
-  // Live Orders Sorting State
-  const [sortField, setSortField] = useState<'time' | 'status' | 'price'>('time');
+  // Live Orders Sorting State: Completed, Pending, Time, Price
+  const [sortField, setSortField] = useState<'completed' | 'pending' | 'time' | 'price'>('time');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
-  const handleSort = (field: 'time' | 'status' | 'price') => {
+  const handleSort = (field: 'completed' | 'pending' | 'time' | 'price') => {
     if (sortField === field) {
       setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
@@ -590,7 +590,23 @@ export function App() {
                     </Typography>
                     <Chip
                       size="small"
-                      label={`⏱️ Time ${sortField === 'time' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}`}
+                      label={`Completed ${sortField === 'completed' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}`}
+                      onClick={() => handleSort('completed')}
+                      color={sortField === 'completed' ? 'primary' : 'default'}
+                      variant={sortField === 'completed' ? 'filled' : 'outlined'}
+                      sx={{ fontWeight: 700, cursor: 'pointer' }}
+                    />
+                    <Chip
+                      size="small"
+                      label={`Pending ${sortField === 'pending' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}`}
+                      onClick={() => handleSort('pending')}
+                      color={sortField === 'pending' ? 'primary' : 'default'}
+                      variant={sortField === 'pending' ? 'filled' : 'outlined'}
+                      sx={{ fontWeight: 700, cursor: 'pointer' }}
+                    />
+                    <Chip
+                      size="small"
+                      label={`Time ${sortField === 'time' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}`}
                       onClick={() => handleSort('time')}
                       color={sortField === 'time' ? 'primary' : 'default'}
                       variant={sortField === 'time' ? 'filled' : 'outlined'}
@@ -598,15 +614,7 @@ export function App() {
                     />
                     <Chip
                       size="small"
-                      label={`⏳ Status (Pending) ${sortField === 'status' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}`}
-                      onClick={() => handleSort('status')}
-                      color={sortField === 'status' ? 'primary' : 'default'}
-                      variant={sortField === 'status' ? 'filled' : 'outlined'}
-                      sx={{ fontWeight: 700, cursor: 'pointer' }}
-                    />
-                    <Chip
-                      size="small"
-                      label={`💰 Price ${sortField === 'price' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}`}
+                      label={`Price ${sortField === 'price' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}`}
                       onClick={() => handleSort('price')}
                       color={sortField === 'price' ? 'primary' : 'default'}
                       variant={sortField === 'price' ? 'filled' : 'outlined'}
@@ -623,8 +631,8 @@ export function App() {
                         </TableCell>
                         <TableCell><strong>Type</strong></TableCell>
                         <TableCell><strong>Details</strong></TableCell>
-                        <TableCell onClick={() => handleSort('status')} sx={{ cursor: 'pointer', userSelect: 'none' }}>
-                          <strong>Status {sortField === 'status' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}</strong>
+                        <TableCell onClick={() => handleSort('pending')} sx={{ cursor: 'pointer', userSelect: 'none' }}>
+                          <strong>Status {sortField === 'pending' || sortField === 'completed' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}</strong>
                         </TableCell>
                         <TableCell onClick={() => handleSort('price')} sx={{ cursor: 'pointer', userSelect: 'none' }}>
                           <strong>Price {sortField === 'price' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}</strong>
@@ -642,13 +650,19 @@ export function App() {
                           if (sortField === 'time') {
                             return (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) * mult;
                           }
-                          if (sortField === 'status') {
-                            // Priority to pending/submitted in ascending sort
-                            const isPendingA = ['SUBMITTED', 'PENDING_ADMIN_APPROVAL', 'AWAITING_APPROVAL'].includes(a.status);
-                            const isPendingB = ['SUBMITTED', 'PENDING_ADMIN_APPROVAL', 'AWAITING_APPROVAL'].includes(b.status);
+                          if (sortField === 'completed') {
+                            const isCompA = a.status === 'COMPLETED';
+                            const isCompB = b.status === 'COMPLETED';
+                            if (isCompA && !isCompB) return -1 * mult;
+                            if (!isCompA && isCompB) return 1 * mult;
+                            return (new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                          }
+                          if (sortField === 'pending') {
+                            const isPendingA = !['COMPLETED', 'CANCELLED'].includes(a.status);
+                            const isPendingB = !['COMPLETED', 'CANCELLED'].includes(b.status);
                             if (isPendingA && !isPendingB) return -1 * mult;
                             if (!isPendingA && isPendingB) return 1 * mult;
-                            return (a.status || '').localeCompare(b.status || '') * mult;
+                            return (new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
                           }
                           if (sortField === 'price') {
                             return ((a.calculatedPrice || 0) - (b.calculatedPrice || 0)) * mult;

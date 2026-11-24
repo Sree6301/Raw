@@ -112,10 +112,12 @@
                             </StackPanel>
 
                             <!-- Photo Border Framing (Borderless / With Border) -->
-                            <TextBlock Text="Photo Border Framing" FontWeight="Bold" Foreground="#334155" FontSize="12" Margin="0,0,0,6"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                                <RadioButton x:Name="RadioPhotoBorderless" Content="Borderless (Full Page)" GroupName="PhotoBorderGroup" IsChecked="True" FontWeight="SemiBold" Margin="0,0,16,0" Checked="OnSettingChanged"/>
-                                <RadioButton x:Name="RadioPhotoWithBorder" Content="With White Border" GroupName="PhotoBorderGroup" FontWeight="SemiBold" Checked="OnSettingChanged"/>
+                            <StackPanel x:Name="PanelPhotoBorderFraming" Margin="0,0,0,12">
+                                <TextBlock Text="Photo Border Framing" FontWeight="Bold" Foreground="#334155" FontSize="12" Margin="0,0,0,6"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <RadioButton x:Name="RadioPhotoBorderless" Content="Borderless (Full Page)" GroupName="PhotoBorderGroup" IsChecked="True" FontWeight="SemiBold" Margin="0,0,16,0" Checked="OnSettingChanged"/>
+                                    <RadioButton x:Name="RadioPhotoWithBorder" Content="With White Border" GroupName="PhotoBorderGroup" FontWeight="SemiBold" Checked="OnSettingChanged"/>
+                                </StackPanel>
                             </StackPanel>
                         </StackPanel>
 
@@ -248,17 +250,22 @@
                     <!-- Preview Image Frame -->
                     <Border Grid.Row="1" Background="#0F172A" CornerRadius="6" BorderBrush="#334155" BorderThickness="1" ClipToBounds="True">
                         <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <!-- Visual Sheet Container with Strict Cropping for Zooming -->
+                            <!-- Overflow Preview Layer (Visible outside sheet frame with opacity when zoomed) -->
+                            <Image x:Name="ImgPreviewOverflow" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.35" IsHitTestVisible="False">
+                                <Image.LayoutTransform>
+                                    <ScaleTransform x:Name="PreviewOverflowScaleTransform" ScaleX="1.0" ScaleY="1.0"/>
+                                </Image.LayoutTransform>
+                            </Image>
+
+                            <!-- Visual Sheet Container with Strict Cropping for Printable Sheet -->
                             <Border x:Name="BorderSheetFrame" Background="White" CornerRadius="2" Margin="10"
-                                    BorderBrush="#94A3B8" BorderThickness="1" ClipToBounds="True">
+                                    BorderBrush="#94A3B8" BorderThickness="1.5" ClipToBounds="True">
                                 <Grid x:Name="GridPreviewCanvas" ClipToBounds="True">
                                     <Image x:Name="ImgPreview" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
                                         <Image.LayoutTransform>
                                             <ScaleTransform x:Name="PreviewScaleTransform" ScaleX="1.0" ScaleY="1.0"/>
                                         </Image.LayoutTransform>
                                     </Image>
-                                    <!-- Visual Border Overlay if Enabled -->
-                                    <Border x:Name="BorderVisualOverlay" BorderBrush="#2563EB" BorderThickness="2" Margin="4" Visibility="Collapsed" IsHitTestVisible="False"/>
                                 </Grid>
                             </Border>
                         </Grid>

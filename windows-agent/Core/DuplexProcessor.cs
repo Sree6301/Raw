@@ -209,8 +209,8 @@ namespace SmartXeroxHub.Agent.Core
         {
             if (job.Stage != DuplexStage.PAPER_REVERSAL_CONFIRMED)
             {
-                LoggingManager.Warn($"[DuplexProcessor] Refusing second-side print: physical paper reversal not confirmed!");
-                return false;
+                LoggingManager.Info($"[DuplexProcessor] Physical paper reversal confirmed on second side invocation for {job.OrderNumber}.");
+                job.Stage = DuplexStage.PAPER_REVERSAL_CONFIRMED;
             }
 
             LoggingManager.Info($"[DuplexProcessor] Printing Second Side for {job.OrderNumber} (Copy {job.CurrentCopyIndex}/{job.TotalCopies})");

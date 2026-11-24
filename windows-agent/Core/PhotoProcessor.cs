@@ -228,6 +228,67 @@ namespace SmartXeroxHub.Agent.Core
 
         /// <summary>
         /// Generates the verified 8-Up Passport photo composite sheet for 4x6 HP Photo Paper (1800 x 1200 px at 300 DPI)
+        /// using the exact permanent calibration parameters from an already cropped photo (aspect ratio 35:45 / 397x513).
+        /// </summary>
+        public static string BuildPassport8UpSheetFromCropped(Image croppedPhoto, string baseName, string? outputDir = null)
+        {
+            const int sheetW = 1800;
+            const int sheetH = 1200;
+            const int photoW = 397;
+            const int photoH = 513;
+            const int leftMargin = 36;
+            const int colGap = 36;
+            const int topMargin = 12;
+            const int rowGap = 36;
+            const int cols = 4;
+            const int rows = 2;
+
+            var bmp = new Bitmap(sheetW, sheetH, PixelFormat.Format32bppArgb);
+            bmp.SetResolution(300, 300);
+
+            using (var g = Graphics.FromImage(bmp))
+            {
+                g.Clear(Color.White);
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.SmoothingMode = SmoothingMode.HighQuality;
+                g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+                using var scaledPhoto = new Bitmap(photoW, photoH, PixelFormat.Format32bppArgb);
+                scaledPhoto.SetResolution(300, 300);
+                using (var sg = Graphics.FromImage(scaledPhoto))
+                {
+                    sg.Clear(Color.White);
+                    sg.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                    sg.SmoothingMode = SmoothingMode.HighQuality;
+                    sg.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                    sg.DrawImage(croppedPhoto, new Rectangle(0, 0, photoW, photoH));
+                }
+
+                for (int r = 0; r < rows; r++)
+                {
+                    for (int c = 0; c < cols; c++)
+                    {
+                        int x = leftMargin + c * (photoW + colGap);
+                        int y = topMargin + r * (photoH + rowGap);
+
+                        g.DrawImage(scaledPhoto, x, y, photoW, photoH);
+
+                        // Sharp cutting border outline
+                        using var borderPen = new Pen(Color.FromArgb(180, 203, 213, 225), 1.5f);
+                        borderPen.LineJoin = LineJoin.Miter;
+                        g.DrawRectangle(borderPen, x, y, photoW, photoH);
+                    }
+                }
+            }
+
+            var dir = outputDir ?? AppDomain.CurrentDomain.BaseDirectory;
+            var outPath = Path.Combine(dir, $"Passport8Up_{DateTime.Now:yyyyMMdd_HHmmss}_{Path.GetFileNameWithoutExtension(baseName)}.jpg");
+            bmp.Save(outPath, ImageFormat.Jpeg);
+            return outPath;
+        }
+
+        /// <summary>
+        /// Generates the verified 8-Up Passport photo composite sheet for 4x6 HP Photo Paper (1800 x 1200 px at 300 DPI)
         /// using the exact permanent calibration parameters: photo size 397x513, left margin 36, top margin 12, gaps 36.
         /// </summary>
         public static string BuildPassport8UpSheet(string inputPhotoPath, string? outputDir = null)
@@ -469,6 +530,17 @@ namespace SmartXeroxHub.Agent.Core
                         int drawH = (int)(pageBmp.Height * aspectScale);
                         int drawX = slot.X + (slot.Width - drawW) / 2;
                         int drawY = slot.Y + (slot.Height - drawH) / 2;
+
+                        if (options.EnableBorder)
+                        {
+                            // Inset content to provide equal white space on all 4 sides without drawing any stroke lines
+                            int marginInset = (int)(slot.Width * 0.05f);
+                            drawX += marginInset;
+                            drawY += marginInset;
+                            drawW = Math.Max(10, drawW - 2 * marginInset);
+                            drawH = Math.Max(10, drawH - 2 * marginInset);
+                        }
+
                         var destRect = new Rectangle(drawX, drawY, drawW, drawH);
 
                         if (options.ColorMode == "BW")
@@ -480,12 +552,6 @@ namespace SmartXeroxHub.Agent.Core
                         else
                         {
                             e.Graphics.DrawImage(pageBmp, destRect);
-                        }
-
-                        if (options.EnableBorder)
-                        {
-                            using var borderPen = new Pen(Color.FromArgb(160, 160, 160), 1.5f);
-                            e.Graphics.DrawRectangle(borderPen, destRect);
                         }
                     }
 

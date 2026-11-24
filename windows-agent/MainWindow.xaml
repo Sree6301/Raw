@@ -64,23 +64,24 @@
                     <Setter Property="FontWeight" Value="SemiBold"/>
                     <Setter Property="Padding" Value="18,10"/>
                     <Setter Property="Margin" Value="0,0,4,0"/>
+                    <Setter Property="Foreground" Value="#334155"/>
                     <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
                     <Setter Property="Template">
                         <Setter.Value>
                             <ControlTemplate TargetType="TabItem">
-                                <Border x:Name="TabBorder" CornerRadius="8,8,0,0" Background="#E2E8F0" Padding="{TemplateBinding Padding}" Margin="{TemplateBinding Margin}">
+                                <Border x:Name="TabBorder" CornerRadius="6,6,0,0" Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="1,1,1,0" Padding="{TemplateBinding Padding}" Margin="{TemplateBinding Margin}">
                                     <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <Trigger Property="IsSelected" Value="True">
-                                        <Setter TargetName="TabBorder" Property="Background" Value="#334155"/>
-                                        <Setter Property="Foreground" Value="White"/>
+                                        <Setter TargetName="TabBorder" Property="Background" Value="#FFFFFF"/>
+                                        <Setter TargetName="TabBorder" Property="BorderBrush" Value="#0284C7"/>
+                                        <Setter TargetName="TabBorder" Property="BorderThickness" Value="1,1,1,2"/>
+                                        <Setter Property="Foreground" Value="#0F172A"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
                                     </Trigger>
                                     <Trigger Property="IsSelected" Value="False">
-                                        <Setter Property="Foreground" Value="#334155"/>
-                                    </Trigger>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="TabBorder" Property="Background" Value="#CBD5E1"/>
+                                        <Setter Property="Foreground" Value="#475569"/>
                                     </Trigger>
                                 </ControlTemplate.Triggers>
                             </ControlTemplate>
@@ -117,16 +118,16 @@
                             <!-- Sorting and Searching Controls -->
                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="Sort by:" FontWeight="SemiBold" FontSize="12" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                <ComboBox x:Name="ComboSortBy" Width="170" Padding="6,4" SelectionChanged="ComboSortBy_SelectionChanged" Margin="0,0,12,0">
-                                    <ComboBoxItem Content="⏱️ Time (Newest First)" IsSelected="True"/>
-                                    <ComboBoxItem Content="⏱️ Time (Oldest First)"/>
-                                    <ComboBoxItem Content="📊 Status (Pending First)"/>
-                                    <ComboBoxItem Content="💰 Price (High to Low)"/>
-                                    <ComboBoxItem Content="💰 Price (Low to High)"/>
+                                <ComboBox x:Name="ComboSortBy" Width="130" Padding="6,4" SelectionChanged="ComboSortBy_SelectionChanged" Margin="0,0,6,0">
+                                    <ComboBoxItem Content="Completed" Tag="COMPLETED"/>
+                                    <ComboBoxItem Content="Pending" Tag="PENDING"/>
+                                    <ComboBoxItem Content="Time" Tag="TIME" IsSelected="True"/>
+                                    <ComboBoxItem Content="Price" Tag="PRICE"/>
                                 </ComboBox>
+                                <Button x:Name="BtnSortDirection" Content="▲ Asc" Click="BtnSortDirection_Click" Background="#F1F5F9" Foreground="#334155" BorderBrush="#CBD5E1" FontWeight="Bold" Padding="10,4" Margin="0,0,12,0" Cursor="Hand" ToolTip="Toggle Ascending / Descending"/>
 
                                 <TextBlock Text="Filter:" FontWeight="SemiBold" FontSize="12" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                <TextBox x:Name="TxtSearchFilter" Width="180" Padding="6,4" TextChanged="TxtSearchFilter_TextChanged" BorderBrush="#CBD5E1"/>
+                                <TextBox x:Name="TxtSearchFilter" Width="170" Padding="6,4" TextChanged="TxtSearchFilter_TextChanged" BorderBrush="#CBD5E1"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="2" Orientation="Horizontal">
@@ -557,7 +558,15 @@
 
                                 <!-- Copies -->
                                 <TextBlock Text="5. Number of Copies" FontWeight="Bold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
-                                <TextBox x:Name="TxtDeskPhotoCopies" Text="1" Width="80" HorizontalAlignment="Left" Padding="6" BorderBrush="#CBD5E1" Margin="0,0,0,14"/>
+                                <TextBox x:Name="TxtDeskPhotoCopies" Text="1" Width="80" HorizontalAlignment="Left" Padding="6" BorderBrush="#CBD5E1" Margin="0,0,0,10"/>
+
+                                <!-- Live Photo Thumbnail Preview -->
+                                <Border Background="#0F172A" Height="100" CornerRadius="4" BorderBrush="#CBD5E1" BorderThickness="1" Margin="0,0,0,10">
+                                    <Grid>
+                                        <Image x:Name="ImgDeskPhotoPreview" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="TxtDeskPhotoEmpty" Text="No photo loaded • Click Browse to crop &amp; preview" Foreground="#94A3B8" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
 
                                 <!-- Action Buttons -->
                                 <Button Content="⚙️ Settings &amp; Live Preview" Click="BtnDeskPhotoSettings_Click" Background="#475569" Foreground="White" FontWeight="Bold" Padding="10,8" BorderThickness="0" Margin="0,0,0,8"/>
@@ -718,6 +727,7 @@
                                                         <Button Content="▲" Tag="{Binding}" Click="BtnPageMoveUp_Click" Padding="4,1" FontSize="9" Margin="0,0,2,0" Background="#F1F5F9" BorderBrush="#CBD5E1"/>
                                                         <Button Content="▼" Tag="{Binding}" Click="BtnPageMoveDown_Click" Padding="4,1" FontSize="9" Margin="0,0,2,0" Background="#F1F5F9" BorderBrush="#CBD5E1"/>
                                                         <Button Content="↷" Tag="{Binding}" Click="BtnPageRotate_Click" Padding="4,1" FontSize="9" Margin="0,0,2,0" Background="#F1F5F9" BorderBrush="#CBD5E1" ToolTip="Rotate 90°"/>
+                                                        <Button Content="✏️" Tag="{Binding}" Click="BtnPageEdit_Click" Padding="4,1" FontSize="9" Margin="0,0,2,0" Background="#EFF6FF" Foreground="#1D4ED8" BorderBrush="#BFDBFE" ToolTip="Edit / Rotate / Enhance"/>
                                                         <Button Content="🗑️" Tag="{Binding}" Click="BtnPageDelete_Click" Padding="4,1" FontSize="9" Background="#FEE2E2" Foreground="#DC2626" BorderBrush="#FECACA" ToolTip="Delete page"/>
                                                     </StackPanel>
                                                 </StackPanel>
@@ -729,9 +739,12 @@
 
                             <!-- Large Active Preview -->
                             <Border Grid.Row="2" Background="#0F172A" BorderBrush="#334155" BorderThickness="1" CornerRadius="6" Padding="8">
-                                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                                    <Image x:Name="ImgScanPreview" Stretch="Uniform" MaxHeight="450"/>
-                                </ScrollViewer>
+                                <Grid>
+                                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                                        <Image x:Name="ImgScanPreview" Stretch="Uniform" MaxHeight="450"/>
+                                    </ScrollViewer>
+                                    <Button Content="✏️ Open in Image Editor" Click="BtnOpenActiveInEditor_Click" Background="#7C3AED" Foreground="White" FontWeight="Bold" Padding="12,6" BorderThickness="0" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="10" Cursor="Hand"/>
+                                </Grid>
                             </Border>
                         </Grid>
                     </Border>
