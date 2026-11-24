@@ -125,6 +125,8 @@ export interface PrintOrder {
   paymentReference?: string;
   adminNotes?: string;
   printSettings?: OrderPrintSettings;
+  claimedBy?: string;
+  claimedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -165,6 +167,8 @@ export interface PhotoOrder {
   calculatedPrice: number;
   paymentStatus: 'UNPAID' | 'CASH_CONFIRMED' | 'UPI_CONFIRMED';
   printSettings?: OrderPrintSettings;
+  claimedBy?: string;
+  claimedAt?: string;
   createdAt: string;
   updatedAt?: string;
 }

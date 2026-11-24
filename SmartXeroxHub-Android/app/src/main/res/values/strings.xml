@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Smart Xerox Admin</string>
+    <string name="channel_sync_name">Live Sync Service</string>
+    <string name="channel_sync_desc">Keeps orders and print requests synchronized in real time.</string>
+</resources>

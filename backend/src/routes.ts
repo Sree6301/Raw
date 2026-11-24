@@ -485,6 +485,67 @@ export function createRouter(
     res.status(404).json({ success: false, error: 'Order not found' });
   });
 
+  // 6.8 ATOMIC JOB CLAIMING (Duplicate Print Prevention between Windows and Android)
+  router.post('/admin/orders/:orderId/claim', (req: Request, res: Response) => {
+    const { orderId } = req.params;
+    const { deviceId, deviceName } = req.body;
+    const claimer = deviceName || deviceId || 'Unknown-Device';
+
+    const checkAndClaim = (order: any) => {
+      const activePrintingStatuses = ['PRINTING', 'FIRST_SIDE_PRINTING', 'SECOND_SIDE_PRINTING', 'COMPLETED'];
+      if (order.claimedBy && order.claimedBy !== claimer && activePrintingStatuses.includes(order.status)) {
+        const claimAgeMs = order.claimedAt ? Date.now() - new Date(order.claimedAt).getTime() : 0;
+        if (claimAgeMs < 10 * 60 * 1000) {
+          return {
+            claimed: false,
+            alreadyClaimed: true,
+            claimedBy: order.claimedBy,
+            claimedAt: order.claimedAt,
+            message: `Order is already being processed/printed by ${order.claimedBy}. Duplicate print rejected.`
+          };
+        }
+      }
+
+      order.claimedBy = claimer;
+      order.claimedAt = new Date().toISOString();
+      if (order.status === 'SUBMITTED' || order.status === 'APPROVED') {
+        if (order.sides === 'MANUAL_DUPLEX') {
+          order.status = 'FIRST_SIDE_PRINTING';
+        } else {
+          order.status = 'PRINTING';
+        }
+      }
+      order.updatedAt = new Date().toISOString();
+      return { claimed: true, alreadyClaimed: false, claimedBy: order.claimedBy };
+    };
+
+    if (state.printOrders.has(orderId)) {
+      const order = state.printOrders.get(orderId)!;
+      const result = checkAndClaim(order);
+      if (!result.claimed) {
+        return res.status(409).json({ success: false, ...result });
+      }
+      savePersistedState(state);
+      broadcastEvent('ORDER_CLAIMED', { orderId, serviceType: 'DOCUMENT', claimedBy: order.claimedBy, claimedAt: order.claimedAt });
+      broadcastEvent('ORDER_UPDATED', { order, duplex: state.duplexJobs.get(orderId) });
+      return res.json({ success: true, ...result, order });
+    }
+
+    if (state.photoOrders.has(orderId)) {
+      const order = state.photoOrders.get(orderId)!;
+      const result = checkAndClaim(order);
+      if (!result.claimed) {
+        return res.status(409).json({ success: false, ...result });
+      }
+      savePersistedState(state);
+      broadcastEvent('ORDER_CLAIMED', { orderId, serviceType: 'PHOTO', claimedBy: order.claimedBy, claimedAt: order.claimedAt });
+      broadcastEvent('PHOTO_ORDER_UPDATED', { order });
+      return res.json({ success: true, ...result, order });
+    }
+
+    res.status(404).json({ success: false, error: 'Order not found' });
+  });
+
   // 7. DIRECT PRINT TRIGGER (from Admin Portal or Desktop Agent)
   router.post('/admin/orders/:orderId/print', (req: Request, res: Response) => {
     const { orderId } = req.params;

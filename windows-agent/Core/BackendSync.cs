@@ -137,6 +137,7 @@ namespace SmartXeroxHub.Agent.Core
         public List<string> ScannedPageUrls { get; set; } = new();
         public int PhotosPerSheet { get; set; } = 1;
         public string PhotoType { get; set; } = "STANDARD";
+        public string ClaimedBy { get; set; } = string.Empty;
 
         public bool IsScan => ServiceType == "SCAN";
         public bool IsDuplex => Sides == "MANUAL_DUPLEX";
@@ -457,6 +458,18 @@ namespace SmartXeroxHub.Agent.Core
                 }
 
                 string printerName = _deviceManager.ActivePrinter?.Name ?? "HP Smart Tank 580-590 series";
+
+                // Duplicate Print Prevention with server-side atomic claiming check
+                if (order.TryGetProperty("claimedBy", out var cbProp))
+                {
+                    string claimedBy = cbProp.GetString() ?? "";
+                    if (!string.IsNullOrEmpty(claimedBy) && !claimedBy.StartsWith("Windows", StringComparison.OrdinalIgnoreCase))
+                    {
+                        LoggingManager.Info($"[BackendSync] Skipping local print trigger: Order {orderId} was claimed by remote device '{claimedBy}'.");
+                        return;
+                    }
+                }
+
                 LoggingManager.Info($"[BackendSync] Executing print trigger for {originalName} (Service: {serviceType}) on printer '{printerName}'");
 
                 if (string.IsNullOrEmpty(fileUrl))
@@ -790,6 +803,26 @@ namespace SmartXeroxHub.Agent.Core
             {
                 LoggingManager.Error($"[BackendSync] Failed to trigger print for {orderId}", ex);
                 return false;
+            }
+        }
+
+        public async Task<bool> ClaimOrderAsync(string orderId, string deviceName = "Windows-Agent")
+        {
+            try
+            {
+                var payload = new { deviceId = Environment.MachineName, deviceName };
+                var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+                var res = await _httpClient.PostAsync($"/api/admin/orders/{orderId}/claim", content);
+                if (res.IsSuccessStatusCode) return true;
+
+                var errText = await res.Content.ReadAsStringAsync();
+                LoggingManager.Warn($"[BackendSync] Claim for order {orderId} rejected or already claimed: {errText}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                LoggingManager.Error($"[BackendSync] Error claiming order {orderId}", ex);
+                return true; // Fallback if offline
             }
         }
 
