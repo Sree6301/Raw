@@ -88,7 +88,7 @@ export interface GuestSession {
 
 export interface OrderPrintSettings {
   dpi: number;
-  pagesPerSheet: 1 | 2 | 4;
+  pagesPerSheet: 1 | 2 | 4 | 6 | 9 | 16;
   orientation: 'PORTRAIT' | 'LANDSCAPE' | 'AUTO';
   scalePercent: number; // 50 - 150
   applyScope?: 'ALL' | 'PAGE';
@@ -189,6 +189,7 @@ export interface ScanOrder {
   paymentStatus: 'UNPAID' | 'CASH_CONFIRMED' | 'UPI_CONFIRMED';
   expiresAt?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface PrinterDevice {

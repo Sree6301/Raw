@@ -59,6 +59,7 @@
                                 <ComboBoxItem Content="150 DPI — Fast Draft / Low File Size" Tag="150"/>
                                 <ComboBoxItem Content="300 DPI — Recommended Standard Quality" Tag="300" IsSelected="True"/>
                                 <ComboBoxItem Content="600 DPI — High Resolution Archival" Tag="600"/>
+                                <ComboBoxItem Content="1200 DPI — Maximum Ultra Studio Capture" Tag="1200"/>
                             </ComboBox>
 
                             <!-- Color Mode -->
@@ -98,9 +99,9 @@
                             <!-- DPI -->
                             <TextBlock Text="Print Resolution (DPI)" FontWeight="Bold" Foreground="#334155" FontSize="12" Margin="0,0,0,6"/>
                             <ComboBox x:Name="ComboPhotoDpi" Height="34" Padding="6,4" Margin="0,0,0,12">
+                                <ComboBoxItem Content="300 DPI — Fast Draft Print" Tag="300"/>
                                 <ComboBoxItem Content="600 DPI — Recommended High Quality Photo" Tag="600" IsSelected="True"/>
                                 <ComboBoxItem Content="1200 DPI — Maximum Studio Photo Resolution" Tag="1200"/>
-                                <ComboBoxItem Content="300 DPI — Fast Draft Print" Tag="300"/>
                             </ComboBox>
 
                             <!-- Color Mode -->
@@ -160,13 +161,18 @@
                                         <ComboBoxItem Content="1-Up (Standard)" Tag="1" IsSelected="True"/>
                                         <ComboBoxItem Content="2-Up (Side-by-side)" Tag="2"/>
                                         <ComboBoxItem Content="4-Up (2×2 Grid)" Tag="4"/>
+                                        <ComboBoxItem Content="6-Up (3×2 Grid)" Tag="6"/>
+                                        <ComboBoxItem Content="9-Up (3×3 Grid)" Tag="9"/>
+                                        <ComboBoxItem Content="16-Up (4×4 Grid)" Tag="16"/>
                                     </ComboBox>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
                                     <TextBlock Text="Resolution (DPI)" FontWeight="Bold" Foreground="#334155" FontSize="12" Margin="0,0,0,4"/>
                                     <ComboBox x:Name="ComboDocDpi" Height="32" Padding="6,4">
-                                        <ComboBoxItem Content="300 DPI (Fast)" Tag="300" IsSelected="True"/>
-                                        <ComboBoxItem Content="600 DPI (Fine)" Tag="600"/>
+                                        <ComboBoxItem Content="150 DPI (Fast Draft)" Tag="150"/>
+                                        <ComboBoxItem Content="300 DPI (Standard)" Tag="300" IsSelected="True"/>
+                                        <ComboBoxItem Content="600 DPI (Fine Document)" Tag="600"/>
+                                        <ComboBoxItem Content="1200 DPI (Ultra Studio)" Tag="1200"/>
                                     </ComboBox>
                                 </StackPanel>
                             </Grid>
@@ -242,13 +248,17 @@
                     <!-- Preview Image Frame -->
                     <Border Grid.Row="1" Background="#0F172A" CornerRadius="6" BorderBrush="#334155" BorderThickness="1" ClipToBounds="True">
                         <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <!-- Visual Sheet Container -->
+                            <!-- Visual Sheet Container with Strict Cropping for Zooming -->
                             <Border x:Name="BorderSheetFrame" Background="White" CornerRadius="2" Margin="10"
-                                    BorderBrush="#94A3B8" BorderThickness="1">
-                                <Grid>
-                                    <Image x:Name="ImgPreview" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    BorderBrush="#94A3B8" BorderThickness="1" ClipToBounds="True">
+                                <Grid x:Name="GridPreviewCanvas" ClipToBounds="True">
+                                    <Image x:Name="ImgPreview" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Image.LayoutTransform>
+                                            <ScaleTransform x:Name="PreviewScaleTransform" ScaleX="1.0" ScaleY="1.0"/>
+                                        </Image.LayoutTransform>
+                                    </Image>
                                     <!-- Visual Border Overlay if Enabled -->
-                                    <Border x:Name="BorderVisualOverlay" BorderBrush="#2563EB" BorderThickness="2" Margin="4" Visibility="Collapsed"/>
+                                    <Border x:Name="BorderVisualOverlay" BorderBrush="#2563EB" BorderThickness="2" Margin="4" Visibility="Collapsed" IsHitTestVisible="False"/>
                                 </Grid>
                             </Border>
                         </Grid>

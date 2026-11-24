@@ -165,7 +165,7 @@ export function HomePage() {
 
         {/* Live Shop Pricing Card */}
         {pricing && (
-          <Box sx={{ mt: 2, p: 2, bgcolor: '#f0f9ff', borderRadius: 2.5, border: '1px solid #bae6fd', textAlign: 'left' }}>
+          <Box sx={{ mt: 2, p: 2, bgcolor: '#f0f9ff', borderRadius: 1, border: '1px solid #bae6fd', textAlign: 'left' }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#0369a1', mb: 1 }}>
               🏷️ LIVE SHOP RATES &amp; PRICING
             </Typography>
@@ -207,7 +207,7 @@ export function HomePage() {
               sx={{
                 height: '100%',
                 display: 'flex',
-                borderRadius: 3,
+                borderRadius: 1,
                 transition: 'transform 0.15s ease, box-shadow 0.15s ease',
                 '&:hover': {
                   transform: 'translateY(-2px)',
@@ -222,7 +222,7 @@ export function HomePage() {
                       sx={{
                         width: 50,
                         height: 50,
-                        borderRadius: 2.5,
+                        borderRadius: 1,
                         bgcolor: item.color,
                         display: 'flex',
                         alignItems: 'center',
@@ -265,7 +265,7 @@ export function HomePage() {
 
       {/* Quick Status Bar */}
       {activeOrderCount > 0 && (
-        <Box sx={{ mt: 3, p: 2, bgcolor: '#eff6ff', borderRadius: 3, border: '1px solid #bfdbfe' }}>
+        <Box sx={{ mt: 3, p: 2, bgcolor: '#eff6ff', borderRadius: 1, border: '1px solid #bfdbfe' }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Box>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e40af' }}>

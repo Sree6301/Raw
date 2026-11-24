@@ -97,6 +97,19 @@ export function App() {
   const [pricing, setPricing] = useState<ShopPricingConfig | null>(null);
   const [agentStatus, setAgentStatus] = useState<{ connected: boolean; agentName: string; activePrinter: string; port: string; lastSeen: string } | null>(null);
 
+  // Live Orders Sorting State
+  const [sortField, setSortField] = useState<'time' | 'status' | 'price'>('time');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  const handleSort = (field: 'time' | 'status' | 'price') => {
+    if (sortField === field) {
+      setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortOrder(field === 'time' ? 'desc' : 'asc');
+    }
+  };
+
   // Duplex Dialog State
   const [duplexModalOrder, setDuplexModalOrder] = useState<(PrintOrder & { duplexJob?: any }) | null>(null);
 
@@ -564,31 +577,85 @@ export function App() {
               </Alert>
             )}
 
-            {/* Recent Orders Table with Settings Gear */}
+            {/* Recent Orders Table with Settings Gear & Interactive Sorting */}
             <Card>
               <CardContent>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2 }}>
-                  Live Orders Queue (Documents & Photos)
-                </Typography>
+                <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={1} sx={{ mb: 2 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                    Live Orders Queue (Documents &amp; Photos)
+                  </Typography>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary' }}>
+                      Sort by:
+                    </Typography>
+                    <Chip
+                      size="small"
+                      label={`⏱️ Time ${sortField === 'time' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}`}
+                      onClick={() => handleSort('time')}
+                      color={sortField === 'time' ? 'primary' : 'default'}
+                      variant={sortField === 'time' ? 'filled' : 'outlined'}
+                      sx={{ fontWeight: 700, cursor: 'pointer' }}
+                    />
+                    <Chip
+                      size="small"
+                      label={`⏳ Status (Pending) ${sortField === 'status' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}`}
+                      onClick={() => handleSort('status')}
+                      color={sortField === 'status' ? 'primary' : 'default'}
+                      variant={sortField === 'status' ? 'filled' : 'outlined'}
+                      sx={{ fontWeight: 700, cursor: 'pointer' }}
+                    />
+                    <Chip
+                      size="small"
+                      label={`💰 Price ${sortField === 'price' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}`}
+                      onClick={() => handleSort('price')}
+                      color={sortField === 'price' ? 'primary' : 'default'}
+                      variant={sortField === 'price' ? 'filled' : 'outlined'}
+                      sx={{ fontWeight: 700, cursor: 'pointer' }}
+                    />
+                  </Stack>
+                </Stack>
                 <TableContainer>
                   <Table size="small">
                     <TableHead>
                       <TableRow>
-                        <TableCell><strong>Order #</strong></TableCell>
+                        <TableCell onClick={() => handleSort('time')} sx={{ cursor: 'pointer', userSelect: 'none' }}>
+                          <strong>Order # / Time {sortField === 'time' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}</strong>
+                        </TableCell>
                         <TableCell><strong>Type</strong></TableCell>
                         <TableCell><strong>Details</strong></TableCell>
-                        <TableCell><strong>Status</strong></TableCell>
-                        <TableCell><strong>Price</strong></TableCell>
-                        <TableCell align="right"><strong>Action & Layout</strong></TableCell>
+                        <TableCell onClick={() => handleSort('status')} sx={{ cursor: 'pointer', userSelect: 'none' }}>
+                          <strong>Status {sortField === 'status' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}</strong>
+                        </TableCell>
+                        <TableCell onClick={() => handleSort('price')} sx={{ cursor: 'pointer', userSelect: 'none' }}>
+                          <strong>Price {sortField === 'price' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}</strong>
+                        </TableCell>
+                        <TableCell align="right"><strong>Action &amp; Layout</strong></TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {[
-                        ...orders.documents.map((d) => ({ ...d, kind: 'DOCUMENT' as const })),
-                        ...orders.photos.map((p) => ({ ...p, kind: 'PHOTO' as const }))
+                        ...orders.documents.filter(d => d.status !== 'CANCELLED').map((d) => ({ ...d, kind: 'DOCUMENT' as const })),
+                        ...orders.photos.filter(p => p.status !== 'CANCELLED').map((p) => ({ ...p, kind: 'PHOTO' as const }))
                       ]
-                        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                        .slice(0, 8)
+                        .sort((a, b) => {
+                          const mult = sortOrder === 'asc' ? 1 : -1;
+                          if (sortField === 'time') {
+                            return (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) * mult;
+                          }
+                          if (sortField === 'status') {
+                            // Priority to pending/submitted in ascending sort
+                            const isPendingA = ['SUBMITTED', 'PENDING_ADMIN_APPROVAL', 'AWAITING_APPROVAL'].includes(a.status);
+                            const isPendingB = ['SUBMITTED', 'PENDING_ADMIN_APPROVAL', 'AWAITING_APPROVAL'].includes(b.status);
+                            if (isPendingA && !isPendingB) return -1 * mult;
+                            if (!isPendingA && isPendingB) return 1 * mult;
+                            return (a.status || '').localeCompare(b.status || '') * mult;
+                          }
+                          if (sortField === 'price') {
+                            return ((a.calculatedPrice || 0) - (b.calculatedPrice || 0)) * mult;
+                          }
+                          return 0;
+                        })
+                        .slice(0, 12)
                         .map((item) => {
                           if (item.kind === 'DOCUMENT') {
                             const doc = item as typeof orders.documents[0];
@@ -1601,6 +1668,7 @@ export function App() {
                             <MenuItem value={150}>150 DPI (Fast / Draft)</MenuItem>
                             <MenuItem value={300}>300 DPI (Standard High Quality)</MenuItem>
                             <MenuItem value={600}>600 DPI (Ultra Fine / Text Quality)</MenuItem>
+                            <MenuItem value={1200}>1200 DPI (Maximum Studio Resolution)</MenuItem>
                           </Select>
                         </FormControl>
 
@@ -1610,11 +1678,14 @@ export function App() {
                           <Select
                             value={customSettings.pagesPerSheet}
                             label="Pages Per Sheet (N-Up)"
-                            onChange={(e) => setCustomSettings({ ...customSettings, pagesPerSheet: Number(e.target.value) as 1 | 2 | 4 })}
+                            onChange={(e) => setCustomSettings({ ...customSettings, pagesPerSheet: Number(e.target.value) as 1 | 2 | 4 | 6 | 9 | 16 })}
                           >
                             <MenuItem value={1}>1 Page Per Sheet (Standard 1-Up)</MenuItem>
                             <MenuItem value={2}>2 Pages Per Sheet (2-Up Side-by-Side)</MenuItem>
                             <MenuItem value={4}>4 Pages Per Sheet (4-Up 2×2 Grid)</MenuItem>
+                            <MenuItem value={6}>6 Pages Per Sheet (6-Up 3×2 Grid)</MenuItem>
+                            <MenuItem value={9}>9 Pages Per Sheet (9-Up 3×3 Grid)</MenuItem>
+                            <MenuItem value={16}>16 Pages Per Sheet (16-Up 4×4 Grid)</MenuItem>
                           </Select>
                         </FormControl>
 
@@ -1851,17 +1922,21 @@ export function App() {
                             display: 'grid',
                             gap: 1,
                             gridTemplateColumns:
-                              customSettings.pagesPerSheet === 1
-                                ? '1fr'
-                                : customSettings.pagesPerSheet === 2
-                                ? customSettings.orientation === 'LANDSCAPE' ? '1fr 1fr' : '1fr'
-                                : '1fr 1fr',
+                              customSettings.pagesPerSheet === 1 ? '1fr'
+                              : customSettings.pagesPerSheet === 2 ? (customSettings.orientation === 'LANDSCAPE' ? '1fr 1fr' : '1fr')
+                              : customSettings.pagesPerSheet === 4 ? '1fr 1fr'
+                              : customSettings.pagesPerSheet === 6 ? '1fr 1fr 1fr'
+                              : customSettings.pagesPerSheet === 9 ? '1fr 1fr 1fr'
+                              : customSettings.pagesPerSheet === 16 ? 'repeat(4, 1fr)'
+                              : '1fr 1fr',
                             gridTemplateRows:
-                              customSettings.pagesPerSheet === 1
-                                ? '1fr'
-                                : customSettings.pagesPerSheet === 2
-                                ? customSettings.orientation === 'LANDSCAPE' ? '1fr' : '1fr 1fr'
-                                : '1fr 1fr',
+                              customSettings.pagesPerSheet === 1 ? '1fr'
+                              : customSettings.pagesPerSheet === 2 ? (customSettings.orientation === 'LANDSCAPE' ? '1fr' : '1fr 1fr')
+                              : customSettings.pagesPerSheet === 4 ? '1fr 1fr'
+                              : customSettings.pagesPerSheet === 6 ? '1fr 1fr'
+                              : customSettings.pagesPerSheet === 9 ? '1fr 1fr 1fr'
+                              : customSettings.pagesPerSheet === 16 ? 'repeat(4, 1fr)'
+                              : '1fr 1fr',
                             transform: `scale(${customSettings.scalePercent / 100})`,
                             transformOrigin: 'center center',
                             transition: 'transform 0.2s ease'

@@ -213,5 +213,76 @@ namespace SmartXeroxHub.Agent.Core
             LoggingManager.Info($"[ScanManager] Combined {pageImagePaths.Count} raw scan pages into PDF: {outputPdfPath}");
             return outputPdfPath;
         }
+
+        /// <summary>
+        /// Saves each scanned page image into its own individual PDF document in RAW_Inputs\Scans.
+        /// </summary>
+        public List<string> CompileIndividualPdfs(List<string> pageImagePaths, string prefix)
+        {
+            var results = new List<string>();
+            for (int i = 0; i < pageImagePaths.Count; i++)
+            {
+                var imgPath = pageImagePaths[i];
+                if (File.Exists(imgPath))
+                {
+                    var outPath = Path.Combine(_rawScansDir, $"ScannedDoc_{prefix}_p{i + 1}.pdf");
+                    using var pdfDoc = new PdfDocument();
+                    var page = pdfDoc.AddPage();
+                    using var xImg = XImage.FromFile(imgPath);
+                    page.Width = xImg.PointWidth;
+                    page.Height = xImg.PointHeight;
+                    using var gfx = XGraphics.FromPdfPage(page);
+                    gfx.DrawImage(xImg, 0, 0, xImg.PointWidth, xImg.PointHeight);
+                    pdfDoc.Save(outPath);
+                    results.Add(outPath);
+                }
+            }
+            LoggingManager.Info($"[ScanManager] Saved {results.Count} individual PDF pages for {prefix}");
+            return results;
+        }
+
+        /// <summary>
+        /// Saves all scanned pages as PNG format.
+        /// </summary>
+        public List<string> SaveAllAsPng(List<string> pageImagePaths, string prefix)
+        {
+            var results = new List<string>();
+            for (int i = 0; i < pageImagePaths.Count; i++)
+            {
+                var imgPath = pageImagePaths[i];
+                if (File.Exists(imgPath))
+                {
+                    var outPath = Path.Combine(_rawScansDir, $"ScannedDoc_{prefix}_p{i + 1}.png");
+                    using var img = System.Drawing.Image.FromFile(imgPath);
+                    img.Save(outPath, System.Drawing.Imaging.ImageFormat.Png);
+                    results.Add(outPath);
+                }
+            }
+            LoggingManager.Info($"[ScanManager] Exported {results.Count} pages as PNG for {prefix}");
+            return results;
+        }
+
+        /// <summary>
+        /// Saves all scanned pages as JPEG format.
+        /// </summary>
+        public List<string> SaveAllAsJpeg(List<string> pageImagePaths, string prefix)
+        {
+            var results = new List<string>();
+            for (int i = 0; i < pageImagePaths.Count; i++)
+            {
+                var imgPath = pageImagePaths[i];
+                if (File.Exists(imgPath))
+                {
+                    var outPath = Path.Combine(_rawScansDir, $"ScannedDoc_{prefix}_p{i + 1}.jpg");
+                    if (Path.GetFullPath(imgPath) != Path.GetFullPath(outPath))
+                    {
+                        File.Copy(imgPath, outPath, true);
+                    }
+                    results.Add(outPath);
+                }
+            }
+            LoggingManager.Info($"[ScanManager] Exported {results.Count} pages as JPEG for {prefix}");
+            return results;
+        }
     }
 }

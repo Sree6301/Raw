@@ -37,17 +37,17 @@ export const theme = createTheme({
     }
   },
   shape: {
-    borderRadius: 16
+    borderRadius: 4
   },
   components: {
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: 12,
-          padding: '10px 24px',
+          borderRadius: 4,
+          padding: '8px 20px',
           boxShadow: 'none',
           '&:hover': {
-            boxShadow: '0 4px 12px rgba(2, 132, 199, 0.2)'
+            boxShadow: '0 2px 8px rgba(2, 132, 199, 0.2)'
           }
         }
       }
@@ -55,8 +55,16 @@ export const theme = createTheme({
     MuiPaper: {
       styleOverrides: {
         root: {
+          borderRadius: 4,
           boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03)',
           border: '1px solid #e2e8f0'
+        }
+      }
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          borderRadius: 4
         }
       }
     }

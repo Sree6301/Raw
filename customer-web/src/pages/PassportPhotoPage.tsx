@@ -361,14 +361,14 @@ export function PassportPhotoPage() {
       </Stack>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+        <Alert severity="error" sx={{ mb: 2, borderRadius: 1 }}>
           {error}
         </Alert>
       )}
 
       {/* STEP 1: UPLOAD PHOTO */}
       {step === 'UPLOAD' && (
-        <Card sx={{ borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+        <Card sx={{ borderRadius: 1, boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
           <CardContent sx={{ p: 4, textAlign: 'center' }}>
             <Box
               sx={{
@@ -404,7 +404,7 @@ export function PassportPhotoPage() {
                 '&:hover': { bgcolor: '#0369a1' },
                 py: 1.5,
                 px: 4,
-                borderRadius: 2,
+                borderRadius: 1,
                 fontWeight: 700,
                 fontSize: '1rem'
               }}
@@ -413,7 +413,7 @@ export function PassportPhotoPage() {
               <input type="file" accept="image/jpeg,image/png,image/jpg" hidden onChange={handleFileChange} />
             </Button>
 
-            <Box sx={{ mt: 4, p: 2.5, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0', textAlign: 'left' }}>
+            <Box sx={{ mt: 4, p: 2.5, bgcolor: '#f8fafc', borderRadius: 1, border: '1px solid #e2e8f0', textAlign: 'left' }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', mb: 1 }}>
                 💡 Guidelines for Best Passport Quality:
               </Typography>
@@ -430,7 +430,7 @@ export function PassportPhotoPage() {
 
       {/* STEP 2: INTERACTIVE CROPPER */}
       {step === 'CROP' && (
-        <Card sx={{ borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+        <Card sx={{ borderRadius: 1, boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
           <CardContent sx={{ p: 3 }}>
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
               <Box>
@@ -603,7 +603,7 @@ export function PassportPhotoPage() {
 
       {/* STEP 3: 8-PHOTO 4×6 SHEET PREVIEW & SUBMISSION */}
       {step === 'PREVIEW' && sheetDataUrl && (
-        <Card sx={{ borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+        <Card sx={{ borderRadius: 1, boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
           <CardContent sx={{ p: 3 }}>
             <Box sx={{ mb: 2, textAlign: 'center' }}>
               <Chip

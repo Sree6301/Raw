@@ -107,6 +107,22 @@ export async function fetchGuestOrders(): Promise<{
   return data.orders;
 }
 
+export async function cancelOrder(orderId: string): Promise<boolean> {
+  const token = getGuestToken();
+  const res = await fetch(`${API_BASE}/api/orders/${orderId}/cancel`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-guest-session-token': token
+    }
+  });
+  const data = await res.json();
+  if (!data.success) {
+    throw new Error(data.error || 'Failed to cancel order');
+  }
+  return true;
+}
+
 export async function fetchPricing() {
   const res = await fetch(`${API_BASE}/api/settings`);
   const data = await res.json();

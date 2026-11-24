@@ -227,6 +227,87 @@ namespace SmartXeroxHub.Agent.Core
         }
 
         /// <summary>
+        /// Generates the verified 8-Up Passport photo composite sheet for 4x6 HP Photo Paper (1800 x 1200 px at 300 DPI)
+        /// using the exact permanent calibration parameters: photo size 397x513, left margin 36, top margin 12, gaps 36.
+        /// </summary>
+        public static string BuildPassport8UpSheet(string inputPhotoPath, string? outputDir = null)
+        {
+            using var srcImg = Image.FromFile(inputPhotoPath);
+            const int sheetW = 1800;
+            const int sheetH = 1200;
+            const int photoW = 397;
+            const int photoH = 513;
+            const int leftMargin = 36;
+            const int colGap = 36;
+            const int topMargin = 12;
+            const int rowGap = 36;
+            const int cols = 4;
+            const int rows = 2;
+
+            var bmp = new Bitmap(sheetW, sheetH, PixelFormat.Format32bppArgb);
+            bmp.SetResolution(300, 300);
+
+            using (var g = Graphics.FromImage(bmp))
+            {
+                g.Clear(Color.White);
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.SmoothingMode = SmoothingMode.HighQuality;
+                g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+                // Crop source image to 397x513 aspect ratio
+                double targetAspect = (double)photoW / photoH;
+                double srcAspect = (double)srcImg.Width / srcImg.Height;
+                int cropW = srcImg.Width;
+                int cropH = srcImg.Height;
+                int cropX = 0;
+                int cropY = 0;
+
+                if (srcAspect > targetAspect)
+                {
+                    cropW = (int)(srcImg.Height * targetAspect);
+                    cropX = (srcImg.Width - cropW) / 2;
+                }
+                else
+                {
+                    cropH = (int)(srcImg.Width / targetAspect);
+                    cropY = (srcImg.Height - cropH) / 2;
+                }
+
+                using var croppedBmp = new Bitmap(photoW, photoH, PixelFormat.Format32bppArgb);
+                croppedBmp.SetResolution(300, 300);
+                using (var cg = Graphics.FromImage(croppedBmp))
+                {
+                    cg.Clear(Color.White);
+                    cg.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                    cg.SmoothingMode = SmoothingMode.HighQuality;
+                    cg.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                    cg.DrawImage(srcImg, new Rectangle(0, 0, photoW, photoH), new Rectangle(cropX, cropY, cropW, cropH), GraphicsUnit.Pixel);
+                }
+
+                for (int r = 0; r < rows; r++)
+                {
+                    for (int c = 0; c < cols; c++)
+                    {
+                        int x = leftMargin + c * (photoW + colGap);
+                        int y = topMargin + r * (photoH + rowGap);
+
+                        g.DrawImage(croppedBmp, x, y, photoW, photoH);
+
+                        // Sharp cutting border outline
+                        using var borderPen = new Pen(Color.FromArgb(180, 203, 213, 225), 1.5f);
+                        borderPen.LineJoin = LineJoin.Miter;
+                        g.DrawRectangle(borderPen, x, y, photoW, photoH);
+                    }
+                }
+            }
+
+            var dir = outputDir ?? Path.GetDirectoryName(inputPhotoPath) ?? AppDomain.CurrentDomain.BaseDirectory;
+            var outPath = Path.Combine(dir, $"Passport8Up_{DateTime.Now:yyyyMMdd_HHmmss}_{Path.GetFileNameWithoutExtension(inputPhotoPath)}.jpg");
+            bmp.Save(outPath, ImageFormat.Jpeg);
+            return outPath;
+        }
+
+        /// <summary>
         /// Prints a PDF document to the HP printer using official Windows GDI+ spooler (PrintDocument)
         /// with zero external browser dependencies, supporting N-up (1, 2, 4 pages/sheet), scaling, and rotation.
         /// </summary>

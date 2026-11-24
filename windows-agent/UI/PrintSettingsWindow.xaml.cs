@@ -37,6 +37,7 @@ namespace SmartXeroxHub.Agent.UI
         private readonly Dictionary<int, string> _pageOrientations = new();
 
         public bool ShouldPrintImmediately { get; private set; }
+        public PrintJobOptions? SelectedOptions { get; private set; }
 
         public PrintSettingsWindow(BackendOrderDto order, BackendSync backendSync, DeviceManager deviceManager)
         {
@@ -205,42 +206,106 @@ namespace SmartXeroxHub.Agent.UI
                 // Document (PDF)
                 if (_resolvedFilePath.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
                 {
-                    int dpi = 150; // High speed preview render
+                    System.Windows.Media.RenderOptions.SetBitmapScalingMode(ImgPreview, System.Windows.Media.BitmapScalingMode.HighQuality);
+                    System.Windows.Media.RenderOptions.SetEdgeMode(ImgPreview, System.Windows.Media.EdgeMode.Aliased);
+
+                    int dpi = 300; // High resolution studio preview render for crisp text
                     using var docReader = DocLib.Instance.GetDocReader(_resolvedFilePath, new PageDimensions(dpi / 72.0));
-                    _totalPages = Math.Max(1, docReader.GetPageCount());
+                    int totalRawPages = Math.Max(1, docReader.GetPageCount());
+
+                    int.TryParse(GetSelectedTag(ComboDocNUp), out int nup);
+                    if (nup <= 0) nup = 1;
+
+                    _totalPages = Math.Max(1, (int)Math.Ceiling((double)totalRawPages / nup));
                     _currentPage = Math.Clamp(_currentPage, 1, _totalPages);
 
                     TxtPageCounter.Text = $"{_currentPage} / {_totalPages}";
-                    TxtPreviewSubtitle.Text = $"Page {_currentPage} of {_totalPages}";
-
-                    using var pageBmp = RenderPdfPage(docReader, _currentPage - 1, dpi);
+                    TxtPreviewSubtitle.Text = nup > 1 
+                        ? $"Sheet {_currentPage} of {_totalPages} ({nup}-Up Grid • Pages {(_currentPage - 1) * nup + 1}–{Math.Min(totalRawPages, _currentPage * nup)})"
+                        : $"Page {_currentPage} of {_totalPages}";
 
                     // Determine orientation for current page
                     string orient = RadioOrientLandscape.IsChecked == true ? "LANDSCAPE" : "PORTRAIT";
                     if (_pageOrientations.TryGetValue(_currentPage, out var customOrient)) orient = customOrient;
-
-                    if (orient == "LANDSCAPE" && pageBmp.Width < pageBmp.Height)
-                    {
-                        pageBmp.RotateFlip(RotateFlipType.Rotate90FlipNone);
-                    }
-                    else if (orient == "PORTRAIT" && pageBmp.Width > pageBmp.Height)
-                    {
-                        pageBmp.RotateFlip(RotateFlipType.Rotate270FlipNone);
-                    }
+                    bool isLandscape = orient == "LANDSCAPE";
 
                     // Scaling / zoom
                     double scalePercent = SliderScale.Value;
                     if (_pageScales.TryGetValue(_currentPage, out var customScale)) scalePercent = customScale;
 
-                    bool isLandscape = orient == "LANDSCAPE";
+                    if (PreviewScaleTransform != null)
+                    {
+                        PreviewScaleTransform.ScaleX = scalePercent / 100.0;
+                        PreviewScaleTransform.ScaleY = scalePercent / 100.0;
+                    }
+
                     BorderSheetFrame.Width = isLandscape ? 380 : 270;
                     BorderSheetFrame.Height = isLandscape ? 270 : 380;
 
                     bool enableBorder = (_order.ServiceType == "PHOTO" || _order.IsPassport8) ? (RadioPhotoWithBorder.IsChecked == true) : (ChkDocBorder.IsChecked == true);
                     BorderVisualOverlay.Visibility = enableBorder ? Visibility.Visible : Visibility.Collapsed;
 
-                    ImgPreview.Source = BitmapToSource(pageBmp);
-                    TxtPreviewDimensions.Text = $"A4 Sheet ({pageBmp.Width} × {pageBmp.Height} px) • {GetSelectedTag(ComboDocDpi)} DPI";
+                    if (nup == 1)
+                    {
+                        using var pageBmp = RenderPdfPage(docReader, _currentPage - 1, dpi);
+
+                        if (orient == "LANDSCAPE" && pageBmp.Width < pageBmp.Height)
+                        {
+                            pageBmp.RotateFlip(RotateFlipType.Rotate90FlipNone);
+                        }
+                        else if (orient == "PORTRAIT" && pageBmp.Width > pageBmp.Height)
+                        {
+                            pageBmp.RotateFlip(RotateFlipType.Rotate270FlipNone);
+                        }
+
+                        ImgPreview.Source = BitmapToSource(pageBmp);
+                        TxtPreviewDimensions.Text = $"A4 Sheet ({pageBmp.Width} × {pageBmp.Height} px • 300 DPI) • {GetSelectedTag(ComboDocDpi)} DPI";
+                    }
+                    else
+                    {
+                        // Render N-Up Composite Sheet
+                        int cols = 1, rows = 1;
+                        if (nup == 2) { cols = 2; rows = 1; }
+                        else if (nup == 4) { cols = 2; rows = 2; }
+                        else if (nup == 6) { cols = 3; rows = 2; }
+                        else if (nup == 9) { cols = 3; rows = 3; }
+                        else if (nup == 16) { cols = 4; rows = 4; }
+
+                        int sheetW = isLandscape ? 3508 : 2480;
+                        int sheetH = isLandscape ? 2480 : 3508;
+                        using var sheetBmp = new Bitmap(sheetW, sheetH);
+                        using (var g = Graphics.FromImage(sheetBmp))
+                        {
+                            g.Clear(Color.White);
+                            g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+
+                            int margin = 60;
+                            int cellW = (sheetW - margin * 2) / cols;
+                            int cellH = (sheetH - margin * 2) / rows;
+                            int startIdx = (_currentPage - 1) * nup;
+
+                            for (int i = 0; i < nup; i++)
+                            {
+                                int pageIdx = startIdx + i;
+                                if (pageIdx >= totalRawPages) break;
+                                int r = i / cols;
+                                int c = i % cols;
+                                int x = margin + c * cellW;
+                                int y = margin + r * cellH;
+
+                                using var pBmp = RenderPdfPage(docReader, pageIdx, 150);
+                                g.DrawImage(pBmp, x + 8, y + 8, cellW - 16, cellH - 16);
+
+                                using var framePen = new Pen(Color.FromArgb(148, 163, 184), 3);
+                                g.DrawRectangle(framePen, x + 8, y + 8, cellW - 16, cellH - 16);
+                            }
+                        }
+
+                        ImgPreview.Source = BitmapToSource(sheetBmp);
+                        TxtPreviewDimensions.Text = $"A4 N-Up Sheet ({nup} pages/sheet • {sheetW} × {sheetH} px) • {GetSelectedTag(ComboDocDpi)} DPI";
+                    }
+
                     TxtPreviewStatus.Text = $"{scalePercent:0}% Zoom • {orient} • {(enableBorder ? "Border ON" : "No Border")}";
                 }
             }
@@ -445,12 +510,16 @@ namespace SmartXeroxHub.Agent.UI
         private async void BtnSave_Click(object sender, RoutedEventArgs e)
         {
             var options = BuildOptions();
+            SelectedOptions = options;
             _order.PrintSettings = options;
             _order.PaperType = options.PaperType;
             _order.PaperSize = options.PaperSize;
             _order.ColorMode = options.ColorMode;
 
-            await _backendSync.SaveOrderSettingsAsync(_order.Id, options);
+            if (_backendSync != null && !string.IsNullOrEmpty(_order.Id) && _order.Id != "desk-preview")
+            {
+                await _backendSync.SaveOrderSettingsAsync(_order.Id, options);
+            }
             MessageBox.Show($"Settings saved for Order {_order.OrderNumber}!", "Settings Saved", MessageBoxButton.OK, MessageBoxImage.Information);
             DialogResult = true;
             Close();
@@ -459,12 +528,16 @@ namespace SmartXeroxHub.Agent.UI
         private async void BtnSaveAndPrint_Click(object sender, RoutedEventArgs e)
         {
             var options = BuildOptions();
+            SelectedOptions = options;
             _order.PrintSettings = options;
             _order.PaperType = options.PaperType;
             _order.PaperSize = options.PaperSize;
             _order.ColorMode = options.ColorMode;
 
-            await _backendSync.SaveOrderSettingsAsync(_order.Id, options);
+            if (_backendSync != null && !string.IsNullOrEmpty(_order.Id) && _order.Id != "desk-preview")
+            {
+                await _backendSync.SaveOrderSettingsAsync(_order.Id, options);
+            }
             ShouldPrintImmediately = true;
             DialogResult = true;
             Close();

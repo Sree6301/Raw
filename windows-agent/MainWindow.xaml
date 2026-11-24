@@ -64,6 +64,7 @@
                     <Setter Property="FontWeight" Value="SemiBold"/>
                     <Setter Property="Padding" Value="18,10"/>
                     <Setter Property="Margin" Value="0,0,4,0"/>
+                    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
                     <Setter Property="Template">
                         <Setter.Value>
                             <ControlTemplate TargetType="TabItem">
@@ -72,7 +73,7 @@
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <Trigger Property="IsSelected" Value="True">
-                                        <Setter TargetName="TabBorder" Property="Background" Value="#1E293B"/>
+                                        <Setter TargetName="TabBorder" Property="Background" Value="#334155"/>
                                         <Setter Property="Foreground" Value="White"/>
                                     </Trigger>
                                     <Trigger Property="IsSelected" Value="False">
@@ -139,7 +140,8 @@
                     <Border Grid.Row="1" Background="White" CornerRadius="10" BorderBrush="#E2E8F0" BorderThickness="1" Padding="8">
                         <DataGrid x:Name="GridOrders" AutoGenerateColumns="False" CanUserAddRows="False"
                                   HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F1F5F9"
-                                  BorderThickness="0" Background="White" RowHeight="48">
+                                  BorderThickness="0" Background="White" RowHeight="48"
+                                  FocusVisualStyle="{x:Null}" SelectionUnit="FullRow">
                             <DataGrid.Resources>
                                 <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#F1F5F9"/>
                                 <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#0F172A"/>
@@ -150,6 +152,7 @@
                                 <Style TargetType="DataGridRow">
                                     <Setter Property="Background" Value="White"/>
                                     <Setter Property="Foreground" Value="#0F172A"/>
+                                    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
                                     <Style.Triggers>
                                         <Trigger Property="IsSelected" Value="True">
                                             <Setter Property="Background" Value="#F8FAFC"/>
@@ -456,210 +459,286 @@
             </TabItem>
 
             <!-- TAB 2: IN-SOFTWARE CUSTOMER / DESK PRINT SERVICES -->
-            <TabItem Header="📤 Desk Printing Services (Upload Local Files)">
-                <Grid Margin="12">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
+            <TabItem Header="📤 Desk Printing Services">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <Grid Margin="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
 
-                    <!-- Left: Document Xerox Desk -->
-                    <Border Grid.Column="0" Background="White" CornerRadius="10" BorderBrush="#E2E8F0" BorderThickness="1" Padding="20" Margin="0,0,8,0">
-                        <StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                <TextBlock Text="📄 Document Xerox &amp; PDF Printing Desk" FontSize="16" FontWeight="Bold" Foreground="#0F172A"/>
+                        <!-- Column 0: Document Xerox Desk -->
+                        <Border Grid.Column="0" Background="White" CornerRadius="10" BorderBrush="#E2E8F0" BorderThickness="1" Padding="16" Margin="0,0,6,0">
+                            <StackPanel>
+                                <TextBlock Text="📄 Document Xerox Desk" FontSize="15" FontWeight="Bold" Foreground="#0F172A" Margin="0,0,0,2"/>
+                                <TextBlock Text="Print local PDF files directly with duplex &amp; N-up control." Foreground="#64748B" FontSize="11" Margin="0,0,0,12"/>
+
+                                <!-- File Browse -->
+                                <TextBlock Text="1. Select Document (PDF)" FontWeight="Bold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="TxtDeskDocPath" IsReadOnly="True" Padding="6" Background="#F8FAFC" BorderBrush="#CBD5E1"/>
+                                    <Button Grid.Column="1" Content="Browse..." Click="BtnBrowseDeskDoc_Click" Margin="6,0,0,0" Padding="10,6" Background="#0284C7" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
+                                </Grid>
+
+                                <!-- Color Mode -->
+                                <TextBlock Text="2. Color Mode" FontWeight="Bold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <RadioButton x:Name="RadioDocBw" Content="B&amp;W" IsChecked="True" FontWeight="SemiBold" Margin="0,0,14,0"/>
+                                    <RadioButton x:Name="RadioDocColor" Content="Color (CMYK)" FontWeight="SemiBold"/>
+                                </StackPanel>
+
+                                <!-- Sides (Single vs Duplex) -->
+                                <TextBlock Text="3. Printing Sides" FontWeight="Bold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <RadioButton x:Name="RadioDocSingle" Content="Single-Sided" IsChecked="True" FontWeight="SemiBold" Margin="0,0,12,0" Checked="RadioDocSides_Changed"/>
+                                    <RadioButton x:Name="RadioDocDuplex" Content="Manual Duplex" FontWeight="SemiBold" Checked="RadioDocSides_Changed"/>
+                                </StackPanel>
+
+                                <!-- Manual Duplex In-Desk Step Guide (Visible when Duplex selected) -->
+                                <Border x:Name="PanelDeskDuplexSteps" Visibility="Collapsed" Background="#F0FDF4" BorderBrush="#86EFAC" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <TextBlock Text="🔄 Duplex Instructions" FontWeight="Bold" Foreground="#15803D" FontSize="11" Margin="0,0,0,4"/>
+                                        <TextBlock Text="Step 1: Prints odd pages (1, 3, 5...) ascending.&#x0a;Step 2: Take printed stack, flip 180° without reordering, re-insert into rear tray, and print reverse even pages." Foreground="#166534" FontSize="10" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Copies -->
+                                <TextBlock Text="4. Number of Copies" FontWeight="Bold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
+                                <TextBox x:Name="TxtDeskDocCopies" Text="1" Width="80" HorizontalAlignment="Left" Padding="6" BorderBrush="#CBD5E1" Margin="0,0,0,14"/>
+
+                                <!-- Action Buttons -->
+                                <Button Content="⚙️ Settings &amp; Live Preview" Click="BtnDeskDocSettings_Click" Background="#475569" Foreground="White" FontWeight="Bold" Padding="10,8" BorderThickness="0" Margin="0,0,0,8"/>
+                                <Button Content="🖨️ Print to HP Smart Tank 589" Click="BtnPrintDeskDoc_Click" Background="#0284C7" Foreground="White" FontWeight="Bold" FontSize="13" Padding="12,10" BorderThickness="0"/>
                             </StackPanel>
-                            <TextBlock Text="Upload and print PDF documents directly from this Windows PC into RAW_Inputs/User_Uploads." Foreground="#64748B" FontSize="12" Margin="0,0,0,16"/>
+                        </Border>
 
-                            <!-- File Browse -->
-                            <TextBlock Text="1. Select Document (PDF)" FontWeight="Bold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
-                            <Grid Margin="0,0,0,14">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBox x:Name="TxtDeskDocPath" IsReadOnly="True" Padding="8" Background="#F8FAFC" BorderBrush="#CBD5E1"/>
-                                <Button Grid.Column="1" Content="Browse PDF..." Click="BtnBrowseDeskDoc_Click" Margin="6,0,0,0" Padding="14,8" Background="#0284C7" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
-                            </Grid>
+                        <!-- Column 1: Photo Printing Desk -->
+                        <Border Grid.Column="1" Background="White" CornerRadius="10" BorderBrush="#E2E8F0" BorderThickness="1" Padding="16" Margin="3,0,3,0">
+                            <StackPanel>
+                                <TextBlock Text="🖼️ Photo Printing Desk" FontSize="15" FontWeight="Bold" Foreground="#0F172A" Margin="0,0,0,2"/>
+                                <TextBlock Text="High-gloss borderless or bordered photo prints." Foreground="#64748B" FontSize="11" Margin="0,0,0,12"/>
 
-                            <!-- Color Mode -->
-                            <TextBlock Text="2. Color Mode" FontWeight="Bold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
-                                <RadioButton x:Name="RadioDocBw" Content="Black &amp; White (Economical)" IsChecked="True" FontWeight="SemiBold" Margin="0,0,16,0"/>
-                                <RadioButton x:Name="RadioDocColor" Content="Full Color" FontWeight="SemiBold"/>
+                                <!-- Photo File Browse -->
+                                <TextBlock Text="1. Select Image (JPG / PNG)" FontWeight="Bold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="TxtDeskPhotoPath" IsReadOnly="True" Padding="6" Background="#F8FAFC" BorderBrush="#CBD5E1"/>
+                                    <Button Grid.Column="1" Content="Browse..." Click="BtnBrowseDeskPhoto_Click" Margin="6,0,0,0" Padding="10,6" Background="#059669" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
+                                </Grid>
+
+                                <!-- Paper Size -->
+                                <TextBlock Text="2. Photo Paper Size" FontWeight="Bold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <RadioButton x:Name="RadioPhoto4x6" Content="4 × 6 inch" IsChecked="True" FontWeight="SemiBold" Margin="0,0,14,0"/>
+                                    <RadioButton x:Name="RadioPhotoA4" Content="A4 Full Sheet" FontWeight="SemiBold"/>
+                                </StackPanel>
+
+                                <!-- Border / Borderless -->
+                                <TextBlock Text="3. Photo Framing" FontWeight="Bold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <RadioButton x:Name="RadioDeskPhotoBorderless" Content="Borderless" IsChecked="True" FontWeight="SemiBold" Margin="0,0,14,0"/>
+                                    <RadioButton x:Name="RadioDeskPhotoWithBorder" Content="With Border" FontWeight="SemiBold"/>
+                                </StackPanel>
+
+                                <!-- Color Mode -->
+                                <TextBlock Text="4. Color Mode" FontWeight="Bold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <RadioButton x:Name="RadioPhotoColor" Content="Full Color" IsChecked="True" FontWeight="SemiBold" Margin="0,0,14,0"/>
+                                    <RadioButton x:Name="RadioPhotoBw" Content="Black &amp; White" FontWeight="SemiBold"/>
+                                </StackPanel>
+
+                                <!-- Copies -->
+                                <TextBlock Text="5. Number of Copies" FontWeight="Bold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
+                                <TextBox x:Name="TxtDeskPhotoCopies" Text="1" Width="80" HorizontalAlignment="Left" Padding="6" BorderBrush="#CBD5E1" Margin="0,0,0,14"/>
+
+                                <!-- Action Buttons -->
+                                <Button Content="⚙️ Settings &amp; Live Preview" Click="BtnDeskPhotoSettings_Click" Background="#475569" Foreground="White" FontWeight="Bold" Padding="10,8" BorderThickness="0" Margin="0,0,0,8"/>
+                                <Button Content="🖼️ Print Clean Photo on HP 589" Click="BtnPrintDeskPhoto_Click" Background="#059669" Foreground="White" FontWeight="Bold" FontSize="13" Padding="12,10" BorderThickness="0"/>
                             </StackPanel>
+                        </Border>
 
-                            <!-- Sides (Single vs Manual Duplex) -->
-                            <TextBlock Text="3. Printing Sides" FontWeight="Bold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
-                                <RadioButton x:Name="RadioDocSingle" Content="Single-Sided" IsChecked="True" FontWeight="SemiBold" Margin="0,0,16,0"/>
-                                <RadioButton x:Name="RadioDocDuplex" Content="Manual Double-Sided (Duplex)" FontWeight="SemiBold"/>
+                        <!-- Column 2: Passport Photos (8-Up on 4x6 HP Glossy) -->
+                        <Border Grid.Column="2" Background="White" CornerRadius="10" BorderBrush="#E2E8F0" BorderThickness="1" Padding="16" Margin="6,0,0,0">
+                            <StackPanel>
+                                <TextBlock Text="🛂 Passport Photos (8-Up)" FontSize="15" FontWeight="Bold" Foreground="#0F172A" Margin="0,0,0,2"/>
+                                <TextBlock Text="Pre-configured 1800×1200 px landscape on 4×6 HP Glossy Paper." Foreground="#64748B" FontSize="11" Margin="0,0,0,12"/>
+
+                                <!-- Passport Image Browse -->
+                                <TextBlock Text="1. Select Portrait Photo (JPG / PNG)" FontWeight="Bold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="TxtDeskPassportPath" IsReadOnly="True" Padding="6" Background="#F8FAFC" BorderBrush="#CBD5E1"/>
+                                    <Button Grid.Column="1" Content="Browse..." Click="BtnBrowseDeskPassport_Click" Margin="6,0,0,0" Padding="10,6" Background="#7C3AED" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
+                                </Grid>
+
+                                <!-- Calibrated 8-Up Live Preview -->
+                                <Border Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="6" Height="140" Margin="0,0,0,12" ClipToBounds="True">
+                                    <Grid>
+                                        <Image x:Name="ImgDeskPassportPreview" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="TxtDeskPassportEmpty" Text="Select a photo to preview 8-Up sheet" Foreground="#94A3B8" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+
+                                <Border Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="6" Padding="8" Margin="0,0,0,14">
+                                    <TextBlock Text="🔒 Calibrated Standard: 397×513 px per photo, 36 px col/row gaps, 36 px left margin, 12 px top margin. Zero bottom or side cropping." Foreground="#1D4ED8" FontSize="10" TextWrapping="Wrap"/>
+                                </Border>
+
+                                <!-- Action Buttons -->
+                                <Button Content="⚙️ Passport Settings" Click="BtnDeskPassportSettings_Click" Background="#475569" Foreground="White" FontWeight="Bold" Padding="10,8" BorderThickness="0" Margin="0,0,0,8"/>
+                                <Button Content="🖨️ Print 8-Up on 4×6 HP Paper" Click="BtnPrintDeskPassport_Click" Background="#7C3AED" Foreground="White" FontWeight="Bold" FontSize="13" Padding="12,10" BorderThickness="0"/>
                             </StackPanel>
-
-                            <!-- Copies -->
-                            <TextBlock Text="4. Number of Copies" FontWeight="Bold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
-                            <TextBox x:Name="TxtDeskDocCopies" Text="1" Width="100" HorizontalAlignment="Left" Padding="6" BorderBrush="#CBD5E1" Margin="0,0,0,20"/>
-
-                            <!-- Action Button -->
-                            <Button Content="🖨️ Send to HP Smart Tank 589 Spooler" Click="BtnPrintDeskDoc_Click" Background="#0284C7" Foreground="White" FontWeight="Bold" FontSize="14" Padding="16,12" BorderThickness="0"/>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Right: Photo Printing Desk -->
-                    <Border Grid.Column="1" Background="White" CornerRadius="10" BorderBrush="#E2E8F0" BorderThickness="1" Padding="20" Margin="8,0,0,0">
-                        <StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                <TextBlock Text="🖼️ Photo Printing Desk" FontSize="16" FontWeight="Bold" Foreground="#0F172A"/>
-                            </StackPanel>
-                            <TextBlock Text="Print high-gloss photos on 4×6 inch or A4 photo paper directly to the HP printer." Foreground="#64748B" FontSize="12" Margin="0,0,0,16"/>
-
-                            <!-- Photo File Browse -->
-                            <TextBlock Text="1. Select Image (JPG / PNG)" FontWeight="Bold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
-                            <Grid Margin="0,0,0,14">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBox x:Name="TxtDeskPhotoPath" IsReadOnly="True" Padding="8" Background="#F8FAFC" BorderBrush="#CBD5E1"/>
-                                <Button Grid.Column="1" Content="Browse Photo..." Click="BtnBrowseDeskPhoto_Click" Margin="6,0,0,0" Padding="14,8" Background="#059669" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
-                            </Grid>
-
-                            <!-- Paper Size -->
-                            <TextBlock Text="2. Photo Paper Size" FontWeight="Bold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
-                                <RadioButton x:Name="RadioPhoto4x6" Content="4 × 6 inch Photo Paper" IsChecked="True" FontWeight="SemiBold" Margin="0,0,16,0"/>
-                                <RadioButton x:Name="RadioPhotoA4" Content="A4 Photo Paper" FontWeight="SemiBold"/>
-                            </StackPanel>
-
-                            <!-- Color Mode -->
-                            <TextBlock Text="3. Color Mode" FontWeight="Bold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
-                                <RadioButton x:Name="RadioPhotoColor" Content="Full Color (Vibrant)" IsChecked="True" FontWeight="SemiBold" Margin="0,0,16,0"/>
-                                <RadioButton x:Name="RadioPhotoBw" Content="Black &amp; White" FontWeight="SemiBold"/>
-                            </StackPanel>
-
-                            <!-- Copies -->
-                            <TextBlock Text="4. Number of Copies" FontWeight="Bold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
-                            <TextBox x:Name="TxtDeskPhotoCopies" Text="1" Width="100" HorizontalAlignment="Left" Padding="6" BorderBrush="#CBD5E1" Margin="0,0,0,20"/>
-
-                            <!-- Action Button -->
-                            <Button Content="🖼️ Print Clean Photo on HP 589" Click="BtnPrintDeskPhoto_Click" Background="#059669" Foreground="White" FontWeight="Bold" FontSize="14" Padding="16,12" BorderThickness="0"/>
-                        </StackPanel>
-                    </Border>
-                </Grid>
+                        </Border>
+                    </Grid>
+                </ScrollViewer>
             </TabItem>
 
-            <!-- TAB 3: PRICING & SHOP RATES -->
-            <TabItem Header="💰 Pricing &amp; Shop Rates">
-                <Grid Margin="12">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-
-                    <!-- Document & Duplex Pricing -->
-                    <Border Grid.Column="0" Background="White" CornerRadius="10" BorderBrush="#E2E8F0" BorderThickness="1" Padding="20" Margin="0,0,8,0">
-                        <StackPanel>
-                            <TextBlock Text="📄 Document Xerox &amp; Duplex Pricing" FontSize="16" FontWeight="Bold" Foreground="#0F172A" Margin="0,0,0,4"/>
-                            <TextBlock Text="Rates applied dynamically to customer document orders and quotes." Foreground="#64748B" FontSize="12" Margin="0,0,0,16"/>
-
-                            <TextBlock Text="A4 Black &amp; White Single Side Rate (₹/page)" FontWeight="SemiBold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
-                            <TextBox x:Name="TxtPriceA4BwSingle" Text="2.00" Padding="8" BorderBrush="#CBD5E1" Margin="0,0,0,12"/>
-
-                            <TextBlock Text="A4 Black &amp; White Double Side (Duplex) Rate (₹/sheet)" FontWeight="SemiBold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
-                            <TextBox x:Name="TxtPriceA4BwDuplex" Text="3.00" Padding="8" BorderBrush="#CBD5E1" Margin="0,0,0,12"/>
-
-                            <TextBlock Text="A4 Color Single Side Rate (₹/page)" FontWeight="SemiBold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
-                            <TextBox x:Name="TxtPriceA4ColorSingle" Text="10.00" Padding="8" BorderBrush="#CBD5E1" Margin="0,0,0,12"/>
-
-                            <TextBlock Text="A4 Color Double Side (Duplex) Rate (₹/sheet)" FontWeight="SemiBold" FontSize="12" Foreground="#334155" Margin="0,0,0,12"/>
-                            <TextBox x:Name="TxtPriceA4ColorDuplex" Text="18.00" Padding="8" BorderBrush="#CBD5E1" Margin="0,0,0,12"/>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Photo & Scan Pricing + Actions -->
-                    <Border Grid.Column="1" Background="White" CornerRadius="10" BorderBrush="#E2E8F0" BorderThickness="1" Padding="20" Margin="8,0,0,0">
-                        <StackPanel>
-                            <TextBlock Text="🖼️ Photo &amp; Scanner Pricing" FontSize="16" FontWeight="Bold" Foreground="#0F172A" Margin="0,0,0,4"/>
-                            <TextBlock Text="Rates applied to photo prints and high-resolution flatbed scanning." Foreground="#64748B" FontSize="12" Margin="0,0,0,16"/>
-
-                            <TextBlock Text="Glossy Photo 4×6 inch Rate (₹/photo)" FontWeight="SemiBold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
-                            <TextBox x:Name="TxtPricePhoto4x6" Text="20.00" Padding="8" BorderBrush="#CBD5E1" Margin="0,0,0,12"/>
-
-                            <TextBlock Text="Glossy Photo A4 Rate (₹/sheet)" FontWeight="SemiBold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
-                            <TextBox x:Name="TxtPricePhotoA4" Text="40.00" Padding="8" BorderBrush="#CBD5E1" Margin="0,0,0,12"/>
-
-                            <TextBlock Text="Flatbed Scan per Page Rate (₹/page)" FontWeight="SemiBold" FontSize="12" Foreground="#334155" Margin="0,0,0,16"/>
-                            <TextBox x:Name="TxtPriceScanPage" Text="10.00" Padding="8" BorderBrush="#CBD5E1" Margin="0,0,0,20"/>
-
-                            <StackPanel Orientation="Horizontal">
-                                <Button Content="💾 Save &amp; Sync Pricing" Click="BtnSavePricing_Click" Background="#0284C7" Foreground="White" FontWeight="Bold" FontSize="13" Padding="16,10" BorderThickness="0" Margin="0,0,10,0"/>
-                                <Button Content="🔄 Reload from Server" Click="BtnReloadPricing_Click" Background="#F1F5F9" Foreground="#0F172A" FontWeight="SemiBold" Padding="14,10" BorderBrush="#CBD5E1"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </Border>
-                </Grid>
-            </TabItem>
-
-            <!-- TAB 4: HP FLATBED SCANNER CONSOLE -->
+            <!-- TAB 3: HP FLATBED SCANNER CONSOLE -->
             <TabItem Header="🔍 HP Flatbed Scanner Console">
                 <Grid Margin="12">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="360"/>
+                        <ColumnDefinition Width="380"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- Scanner Controls -->
-                    <Border Grid.Column="0" Background="White" CornerRadius="10" BorderBrush="#E2E8F0" BorderThickness="1" Padding="18" Margin="0,0,12,0">
-                        <StackPanel>
-                            <TextBlock Text="HP Smart Tank 589 Flatbed Scanner" FontSize="16" FontWeight="Bold" Foreground="#0F172A" Margin="0,0,0,4"/>
-                            <TextBlock Text="Zero watermarks. Captures the EXACT document on the physical glass platen directly to RAW_Inputs/Scans." Foreground="#64748B" FontSize="11" Margin="0,0,0,16" TextWrapping="Wrap"/>
+                    <!-- Left: Scanner Controls & Batch Options -->
+                    <Border Grid.Column="0" Background="White" CornerRadius="10" BorderBrush="#E2E8F0" BorderThickness="1" Padding="16" Margin="0,0,12,0">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="HP Smart Tank 589 Flatbed Scanner" FontSize="15" FontWeight="Bold" Foreground="#0F172A" Margin="0,0,0,2"/>
+                                <TextBlock Text="Physical glass capture. Zero synthetic overlays or watermarks." Foreground="#64748B" FontSize="11" Margin="0,0,0,12"/>
 
-                            <!-- Resolution Selection -->
-                            <TextBlock Text="1. Scan Resolution" FontWeight="Bold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
-                                <RadioButton x:Name="RadioScan300" Content="300 DPI (Standard)" IsChecked="True" FontWeight="SemiBold" Margin="0,0,12,0"/>
-                                <RadioButton x:Name="RadioScan600" Content="600 DPI (High Def)" FontWeight="SemiBold"/>
+                                <!-- Scan Progress & Live Count Card -->
+                                <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock x:Name="TxtScanProgress" Text="● Scanner Ready" FontWeight="Bold" Foreground="#059669" FontSize="12"/>
+                                        <TextBlock x:Name="TxtSessionPageCount" Text="Current Batch: 0 page(s) scanned" Foreground="#64748B" FontSize="11" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Resolution Selection (150, 300, 600, 1200 DPI) -->
+                                <TextBlock Text="1. Optical Resolution (DPI)" FontWeight="Bold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <RadioButton Grid.Column="0" x:Name="RadioScan150" Content="150 DPI (Draft)" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <RadioButton Grid.Column="1" x:Name="RadioScan300" Content="300 DPI (Standard)" IsChecked="True" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                </Grid>
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <RadioButton Grid.Column="0" x:Name="RadioScan600" Content="600 DPI (Fine)" FontWeight="SemiBold"/>
+                                    <RadioButton Grid.Column="1" x:Name="RadioScan1200" Content="1200 DPI (Studio)" FontWeight="SemiBold"/>
+                                </Grid>
+
+                                <!-- Color Mode -->
+                                <TextBlock Text="2. Color Mode" FontWeight="Bold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                                    <RadioButton x:Name="RadioScanColor" Content="Full Color (24-bit)" IsChecked="True" FontWeight="SemiBold" Margin="0,0,16,0"/>
+                                    <RadioButton x:Name="RadioScanGrayscale" Content="Grayscale (8-bit)" FontWeight="SemiBold"/>
+                                </StackPanel>
+
+                                <!-- Big Trigger Scan Buttons -->
+                                <Button x:Name="BtnAcquireRealScan" Content="🔍 Scan Page on Glass (Add to Batch)" Click="BtnAcquireRealScan_Click"
+                                        Background="#7C3AED" Foreground="White" FontWeight="Bold" FontSize="13" Padding="12,10" BorderThickness="0" Margin="0,0,0,6"/>
+                                <Grid Margin="0,0,0,14">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button Grid.Column="0" Content="➕ Next Page" Click="BtnContinueScan_Click" Background="#475569" Foreground="White" FontWeight="SemiBold" Padding="8,6" BorderThickness="0" Margin="0,0,4,0"/>
+                                    <Button Grid.Column="1" Content="🆕 New Batch" Click="BtnNewScanBatch_Click" Background="#F1F5F9" Foreground="#0F172A" BorderBrush="#CBD5E1" FontWeight="SemiBold" Padding="8,6" Margin="4,0,0,0"/>
+                                </Grid>
+
+                                <!-- Save Batch Options -->
+                                <TextBlock Text="3. Save &amp; Export Batch Options" FontWeight="Bold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <RadioButton x:Name="RadioMergeSinglePdf" Content="Single Combined PDF" GroupName="PdfFormatGroup" IsChecked="True" FontWeight="SemiBold" Margin="0,0,12,0"/>
+                                    <RadioButton x:Name="RadioIndividualPdfs" Content="Individual PDFs" GroupName="PdfFormatGroup" FontWeight="SemiBold"/>
+                                </StackPanel>
+
+                                <Button Content="💾 Save as PDF Document(s)" Click="BtnSavePdf_Click" Background="#059669" Foreground="White" FontWeight="Bold" Padding="12,8" BorderThickness="0" Margin="0,0,0,6"/>
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button Grid.Column="0" Content="🖼️ Save as PNG" Click="BtnSavePng_Click" Background="#F1F5F9" Foreground="#0F172A" BorderBrush="#CBD5E1" FontWeight="SemiBold" Padding="8,6" Margin="0,0,4,0"/>
+                                    <Button Grid.Column="1" Content="🖼️ Save as JPEG" Click="BtnSaveJpeg_Click" Background="#F1F5F9" Foreground="#0F172A" BorderBrush="#CBD5E1" FontWeight="SemiBold" Padding="8,6" Margin="4,0,0,0"/>
+                                </Grid>
+
+                                <Button Content="📁 Open RAW_Inputs/Scans Folder" Click="BtnOpenScansFolder_Click" Background="#F8FAFC" Foreground="#334155" BorderBrush="#CBD5E1" Padding="10,6"/>
                             </StackPanel>
-
-                            <!-- Color Mode Selection -->
-                            <TextBlock Text="2. Color Mode" FontWeight="Bold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,18">
-                                <RadioButton x:Name="RadioScanColor" Content="Full Color" IsChecked="True" FontWeight="SemiBold" Margin="0,0,16,0"/>
-                                <RadioButton x:Name="RadioScanGrayscale" Content="Grayscale" FontWeight="SemiBold"/>
-                            </StackPanel>
-
-                            <!-- Big Trigger Scan Button -->
-                            <Button x:Name="BtnAcquireRealScan" Content="🔍 Scan Page on Glass (No Watermark)" Click="BtnAcquireRealScan_Click"
-                                    Background="#7C3AED" Foreground="White" FontWeight="Bold" FontSize="13" Padding="14,12" BorderThickness="0" Margin="0,0,0,12"/>
-
-                            <!-- Finish and Merge to PDF -->
-                            <Button x:Name="BtnMergeScanPdf" Content="📄 Merge Scanned Pages to PDF" Click="BtnMergeScanPdf_Click"
-                                    Background="#059669" Foreground="White" FontWeight="Bold" Padding="12,10" BorderThickness="0" Margin="0,0,0,8"/>
-
-                            <Button Content="📁 Open RAW_Inputs/Scans Folder" Click="BtnOpenScansFolder_Click"
-                                    Background="#F1F5F9" Foreground="#0F172A" BorderBrush="#CBD5E1" Padding="12,8"/>
-                        </StackPanel>
+                        </ScrollViewer>
                     </Border>
 
-                    <!-- Real Scanner Preview Area -->
-                    <Border Grid.Column="1" Background="White" CornerRadius="10" BorderBrush="#E2E8F0" BorderThickness="1" Padding="16">
-                        <DockPanel>
-                            <Grid DockPanel.Dock="Top" Margin="0,0,0,10">
-                                <TextBlock Text="Scanned Image Preview (Direct from Flatbed Glass)" FontSize="14" FontWeight="Bold" Foreground="#0F172A" HorizontalAlignment="Left"/>
+                    <!-- Right: Live Scanned Gallery & Large Preview -->
+                    <Border Grid.Column="1" Background="White" CornerRadius="10" BorderBrush="#E2E8F0" BorderThickness="1" Padding="14">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="130"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <Grid Grid.Row="0" Margin="0,0,0,8">
+                                <TextBlock Text="Scanned Pages Batch Gallery" FontSize="14" FontWeight="Bold" Foreground="#0F172A" HorizontalAlignment="Left"/>
                                 <TextBlock x:Name="TxtScanFileSaved" Text="No scan acquired yet" FontSize="11" Foreground="#059669" FontWeight="SemiBold" HorizontalAlignment="Right"/>
                             </Grid>
-                            <Border Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="8" Padding="10">
+
+                            <!-- Gallery Thumbnail Strip -->
+                            <Border Grid.Row="1" Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="6" Padding="6" Margin="0,0,0,8">
+                                <ListView x:Name="ListScannedPages" BorderThickness="0" Background="Transparent" SelectionChanged="ListScannedPages_SelectionChanged">
+                                    <ListView.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal"/>
+                                        </ItemsPanelTemplate>
+                                    </ListView.ItemsPanel>
+                                    <ListView.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4" Background="White" Padding="6" Margin="0,0,8,0" Width="130">
+                                                <StackPanel>
+                                                    <Image Source="{Binding Thumbnail}" Height="60" Stretch="Uniform" HorizontalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding DisplayName}" FontSize="10" FontWeight="Bold" Foreground="#334155" HorizontalAlignment="Center" Margin="0,2,0,4" TextTrimming="CharacterEllipsis"/>
+                                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                        <Button Content="▲" Tag="{Binding}" Click="BtnPageMoveUp_Click" Padding="4,1" FontSize="9" Margin="0,0,2,0" Background="#F1F5F9" BorderBrush="#CBD5E1"/>
+                                                        <Button Content="▼" Tag="{Binding}" Click="BtnPageMoveDown_Click" Padding="4,1" FontSize="9" Margin="0,0,2,0" Background="#F1F5F9" BorderBrush="#CBD5E1"/>
+                                                        <Button Content="↷" Tag="{Binding}" Click="BtnPageRotate_Click" Padding="4,1" FontSize="9" Margin="0,0,2,0" Background="#F1F5F9" BorderBrush="#CBD5E1" ToolTip="Rotate 90°"/>
+                                                        <Button Content="🗑️" Tag="{Binding}" Click="BtnPageDelete_Click" Padding="4,1" FontSize="9" Background="#FEE2E2" Foreground="#DC2626" BorderBrush="#FECACA" ToolTip="Delete page"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListView.ItemTemplate>
+                                </ListView>
+                            </Border>
+
+                            <!-- Large Active Preview -->
+                            <Border Grid.Row="2" Background="#0F172A" BorderBrush="#334155" BorderThickness="1" CornerRadius="6" Padding="8">
                                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                                    <Image x:Name="ImgScanPreview" Stretch="Uniform" MaxHeight="520"/>
+                                    <Image x:Name="ImgScanPreview" Stretch="Uniform" MaxHeight="450"/>
                                 </ScrollViewer>
                             </Border>
-                        </DockPanel>
+                        </Grid>
                     </Border>
                 </Grid>
             </TabItem>
 
-            <!-- TAB 5: PRINTERS & SPOOLER HARDWARE -->
+            <!-- TAB 4: PRINTERS & SPOOLER HARDWARE -->
             <TabItem Header="🖨️ Hardware &amp; Spooler">
                 <Grid Margin="12">
                     <Grid.RowDefinitions>
@@ -713,33 +792,66 @@
                 </Grid>
             </TabItem>
 
-            <!-- TAB 6: SETTINGS & RAW_INPUTS EXPLORER -->
-            <TabItem Header="⚙️ Settings &amp; Folders">
-                <Grid Margin="12">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
+            <!-- TAB 5: SETTINGS, PRICING & FOLDERS -->
+            <TabItem Header="⚙️ Settings, Pricing &amp; Folders">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <Grid Margin="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
 
-                    <Border Grid.Column="0" Background="White" CornerRadius="10" BorderBrush="#E2E8F0" BorderThickness="1" Padding="20" Margin="0,0,8,0">
-                        <StackPanel>
-                            <TextBlock Text="RAW_Inputs Folder Storage" FontSize="16" FontWeight="Bold" Foreground="#0F172A" Margin="0,0,0,4"/>
-                            <TextBlock Text="All user-uploaded PDF documents, customer photos, and real physical scans are safely archived here." Foreground="#64748B" FontSize="12" Margin="0,0,0,18" TextWrapping="Wrap"/>
+                        <!-- Left: Pricing & Shop Rates -->
+                        <Border Grid.Column="0" Background="White" CornerRadius="10" BorderBrush="#E2E8F0" BorderThickness="1" Padding="18" Margin="0,0,8,0">
+                            <StackPanel>
+                                <TextBlock Text="💰 Shop Rates &amp; Pricing Architecture" FontSize="16" FontWeight="Bold" Foreground="#0F172A" Margin="0,0,0,2"/>
+                                <TextBlock Text="Dynamic rates synchronized across Customer Web, Admin Portal, and Agent." Foreground="#64748B" FontSize="11" Margin="0,0,0,14"/>
 
-                            <Button Content="📁 Open RAW_Inputs Root Folder" Click="BtnOpenRawInputs_Click" Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="14,10" Margin="0,0,0,10" BorderThickness="0"/>
-                            <Button Content="📂 Open RAW_Inputs/User_Uploads" Click="BtnOpenUserUploadsFolder_Click" Background="#F1F5F9" Foreground="#0F172A" BorderBrush="#CBD5E1" FontWeight="SemiBold" Padding="14,10" Margin="0,0,0,10"/>
-                            <Button Content="📂 Open RAW_Inputs/Scans" Click="BtnOpenScansFolder_Click" Background="#F1F5F9" Foreground="#0F172A" BorderBrush="#CBD5E1" FontWeight="SemiBold" Padding="14,10"/>
-                        </StackPanel>
-                    </Border>
+                                <TextBlock Text="A4 Black &amp; White Single Side (₹/page)" FontWeight="SemiBold" FontSize="11" Foreground="#334155" Margin="0,0,0,2"/>
+                                <TextBox x:Name="TxtPriceA4BwSingle" Text="2.00" Padding="6" BorderBrush="#CBD5E1" Margin="0,0,0,8"/>
 
-                    <Border Grid.Column="1" Background="White" CornerRadius="10" BorderBrush="#E2E8F0" BorderThickness="1" Padding="20" Margin="8,0,0,0">
-                        <StackPanel>
-                            <TextBlock Text="System Configuration" FontSize="16" FontWeight="Bold" Foreground="#0F172A" Margin="0,0,0,4"/>
-                            <TextBlock Text="Target Host: Windows 11 Pro 64-bit&#x0a;Backend API: http://localhost:3001/api&#x0a;Realtime WebSocket: ws://localhost:3001/ws" FontFamily="Consolas" FontSize="12" Foreground="#334155" Margin="0,0,0,18"/>
-                            <Button Content="📄 Print Duplex Calibration Test Sheet" Click="BtnPrintCalibration_Click" Background="#334155" Foreground="White" FontWeight="Bold" Padding="14,10" BorderThickness="0"/>
-                        </StackPanel>
-                    </Border>
-                </Grid>
+                                <TextBlock Text="A4 Black &amp; White Double Side Duplex (₹/sheet)" FontWeight="SemiBold" FontSize="11" Foreground="#334155" Margin="0,0,0,2"/>
+                                <TextBox x:Name="TxtPriceA4BwDuplex" Text="3.00" Padding="6" BorderBrush="#CBD5E1" Margin="0,0,0,8"/>
+
+                                <TextBlock Text="A4 Color Single Side (₹/page)" FontWeight="SemiBold" FontSize="11" Foreground="#334155" Margin="0,0,0,2"/>
+                                <TextBox x:Name="TxtPriceA4ColorSingle" Text="10.00" Padding="6" BorderBrush="#CBD5E1" Margin="0,0,0,8"/>
+
+                                <TextBlock Text="A4 Color Double Side Duplex (₹/sheet)" FontWeight="SemiBold" FontSize="11" Foreground="#334155" Margin="0,0,0,2"/>
+                                <TextBox x:Name="TxtPriceA4ColorDuplex" Text="18.00" Padding="6" BorderBrush="#CBD5E1" Margin="0,0,0,8"/>
+
+                                <TextBlock Text="Glossy Photo 4×6 inch (₹/photo)" FontWeight="SemiBold" FontSize="11" Foreground="#334155" Margin="0,0,0,2"/>
+                                <TextBox x:Name="TxtPricePhoto4x6" Text="20.00" Padding="6" BorderBrush="#CBD5E1" Margin="0,0,0,8"/>
+
+                                <TextBlock Text="Glossy Photo A4 Sheet (₹/sheet)" FontWeight="SemiBold" FontSize="11" Foreground="#334155" Margin="0,0,0,2"/>
+                                <TextBox x:Name="TxtPricePhotoA4" Text="40.00" Padding="6" BorderBrush="#CBD5E1" Margin="0,0,0,8"/>
+
+                                <TextBlock Text="Flatbed Scan Rate (₹/page)" FontWeight="SemiBold" FontSize="11" Foreground="#334155" Margin="0,0,0,2"/>
+                                <TextBox x:Name="TxtPriceScanPage" Text="10.00" Padding="6" BorderBrush="#CBD5E1" Margin="0,0,0,12"/>
+
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="💾 Save &amp; Sync Pricing" Click="BtnSavePricing_Click" Background="#0284C7" Foreground="White" FontWeight="Bold" FontSize="12" Padding="14,8" BorderThickness="0" Margin="0,0,8,0"/>
+                                    <Button Content="🔄 Reload Rates" Click="BtnReloadPricing_Click" Background="#F1F5F9" Foreground="#0F172A" FontWeight="SemiBold" Padding="12,8" BorderBrush="#CBD5E1"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Right: RAW_Inputs Folders & System Diagnostics -->
+                        <Border Grid.Column="1" Background="White" CornerRadius="10" BorderBrush="#E2E8F0" BorderThickness="1" Padding="18" Margin="8,0,0,0">
+                            <StackPanel>
+                                <TextBlock Text="📁 RAW_Inputs Storage Folders" FontSize="16" FontWeight="Bold" Foreground="#0F172A" Margin="0,0,0,2"/>
+                                <TextBlock Text="All customer PDFs, uploaded photos, and physical scans are archived here." Foreground="#64748B" FontSize="11" Margin="0,0,0,14" TextWrapping="Wrap"/>
+
+                                <Button Content="📁 Open RAW_Inputs Root Folder" Click="BtnOpenRawInputs_Click" Background="#0284C7" Foreground="White" FontWeight="Bold" Padding="12,8" Margin="0,0,0,8" BorderThickness="0"/>
+                                <Button Content="📂 Open RAW_Inputs/User_Uploads" Click="BtnOpenUserUploadsFolder_Click" Background="#F1F5F9" Foreground="#0F172A" BorderBrush="#CBD5E1" FontWeight="SemiBold" Padding="12,8" Margin="0,0,0,8"/>
+                                <Button Content="📂 Open RAW_Inputs/Scans" Click="BtnOpenScansFolder_Click" Background="#F1F5F9" Foreground="#0F172A" BorderBrush="#CBD5E1" FontWeight="SemiBold" Padding="12,8" Margin="0,0,0,16"/>
+
+                                <TextBlock Text="System Diagnostics &amp; Status" FontSize="14" FontWeight="Bold" Foreground="#0F172A" Margin="0,0,0,4"/>
+                                <TextBlock Text="Target Host: Windows 11 Pro 64-bit&#x0a;Backend API: http://localhost:3001/api&#x0a;Realtime WebSocket: Active" FontFamily="Consolas" FontSize="11" Foreground="#334155" Margin="0,0,0,14"/>
+                                <Button Content="📄 Print Duplex Calibration Test Sheet" Click="BtnPrintCalibration_Click" Background="#334155" Foreground="White" FontWeight="Bold" Padding="12,8" BorderThickness="0"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </ScrollViewer>
             </TabItem>
         </TabControl>
 

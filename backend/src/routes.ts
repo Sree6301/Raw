@@ -389,14 +389,66 @@ export function createRouter(
     });
   });
 
+  // 5.5 CUSTOMER ORDER CANCELLATION (Only permitted until admin accepts)
+  router.post('/orders/:orderId/cancel', (req: Request, res: Response) => {
+    const { orderId } = req.params;
+    let cancelledOrder: any = null;
+    let serviceType = '';
+
+    if (state.printOrders.has(orderId)) {
+      const order = state.printOrders.get(orderId)!;
+      // Allow cancellation only if not yet accepted/printing/completed
+      if (['SUBMITTED', 'PENDING_REVIEW', 'AWAITING_APPROVAL'].includes(order.status)) {
+        order.status = 'CANCELLED';
+        order.updatedAt = new Date().toISOString();
+        cancelledOrder = order;
+        serviceType = 'DOCUMENT';
+      } else {
+        return res.status(400).json({ success: false, error: 'Order has already been accepted or processed by operator and cannot be cancelled.' });
+      }
+    } else if (state.photoOrders.has(orderId)) {
+      const order = state.photoOrders.get(orderId)!;
+      if (['SUBMITTED', 'PENDING_REVIEW', 'AWAITING_APPROVAL'].includes(order.status)) {
+        order.status = 'CANCELLED';
+        order.updatedAt = new Date().toISOString();
+        cancelledOrder = order;
+        serviceType = 'PHOTO';
+      } else {
+        return res.status(400).json({ success: false, error: 'Order has already been accepted or processed by operator and cannot be cancelled.' });
+      }
+    } else if (state.scanOrders.has(orderId)) {
+      const order = state.scanOrders.get(orderId)!;
+      if (['SUBMITTED', 'PENDING_REVIEW'].includes(order.status)) {
+        order.status = 'CANCELLED';
+        order.updatedAt = new Date().toISOString();
+        cancelledOrder = order;
+        serviceType = 'SCAN';
+      } else {
+        return res.status(400).json({ success: false, error: 'Order has already been accepted or processed by operator and cannot be cancelled.' });
+      }
+    }
+
+    if (!cancelledOrder) {
+      return res.status(404).json({ success: false, error: 'Order not found' });
+    }
+
+    savePersistedState(state);
+    broadcastEvent('ORDER_CANCELLED', { orderId, serviceType, order: cancelledOrder });
+    broadcastEvent('ORDER_UPDATED', { order: cancelledOrder });
+    return res.json({ success: true, order: cancelledOrder });
+  });
+
   // 6. ADMIN DASHBOARD & WINDOWS AGENT ORDERS RETRIEVAL
   router.get('/admin/orders', (_req: Request, res: Response) => {
-    const documents = Array.from(state.printOrders.values()).map(o => ({
-      ...o,
-      duplexJob: state.duplexJobs.get(o.id)
-    }));
-    const photos = Array.from(state.photoOrders.values());
-    const scans = Array.from(state.scanOrders.values());
+    // Filter out CANCELLED orders so they never appear in admin queues
+    const documents = Array.from(state.printOrders.values())
+      .filter(o => o.status !== 'CANCELLED')
+      .map(o => ({
+        ...o,
+        duplexJob: state.duplexJobs.get(o.id)
+      }));
+    const photos = Array.from(state.photoOrders.values()).filter(o => o.status !== 'CANCELLED');
+    const scans = Array.from(state.scanOrders.values()).filter(o => o.status !== 'CANCELLED');
 
     res.json({
       success: true,

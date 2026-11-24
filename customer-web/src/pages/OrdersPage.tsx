@@ -24,9 +24,10 @@ import {
   CheckCircle2,
   Clock,
   Printer,
-  AlertCircle
+  AlertCircle,
+  Trash2
 } from 'lucide-react';
-import { fetchGuestOrders } from '../api.js';
+import { fetchGuestOrders, cancelOrder } from '../api.js';
 import { PrintOrder, PhotoOrder, ScanOrder } from '@smart-xerox-hub/shared';
 
 export function OrdersPage() {
@@ -69,6 +70,8 @@ export function OrdersPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'CANCELLED':
+        return { bg: '#fee2e2', text: '#b91c1c', border: '#fca5a5' };
       case 'COMPLETED':
       case 'DOWNLOAD_AVAILABLE':
         return { bg: '#ecfdf5', text: '#047857', border: '#a7f3d0' };
@@ -82,6 +85,18 @@ export function OrdersPage() {
         return { bg: '#fef3c7', text: '#b45309', border: '#fde68a' };
       default:
         return { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' };
+    }
+  };
+
+  const handleCancel = async (orderId: string, orderNumber: string) => {
+    if (!window.confirm(`Are you sure you want to cancel order #${orderNumber}?`)) {
+      return;
+    }
+    try {
+      await cancelOrder(orderId);
+      loadData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to cancel order');
     }
   };
 
@@ -145,7 +160,7 @@ export function OrdersPage() {
 
                   {/* Manual Duplex Workflow Indicator */}
                   {doc.sides === 'MANUAL_DUPLEX' && doc.duplexJob && (
-                    <Box sx={{ mt: 1.5, p: 1.5, bgcolor: '#f0f9ff', borderRadius: 2, border: '1px solid #bae6fd' }}>
+                    <Box sx={{ mt: 1.5, p: 1.5, bgcolor: '#f0f9ff', borderRadius: 1, border: '1px solid #bae6fd' }}>
                       <Typography variant="caption" sx={{ fontWeight: 700, color: '#0369a1', display: 'block', mb: 0.5 }}>
                         Manual Duplex Progress:
                       </Typography>
@@ -165,12 +180,26 @@ export function OrdersPage() {
                     <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#166534' }}>
                       ₹{doc.calculatedPrice.toFixed(2)}
                     </Typography>
-                    <Chip
-                      size="small"
-                      label={doc.paymentStatus}
-                      variant="outlined"
-                      sx={{ fontSize: '0.7rem' }}
-                    />
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      {['SUBMITTED', 'PENDING_ADMIN_APPROVAL'].includes(doc.status) && (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="error"
+                          startIcon={<Trash2 size={13} />}
+                          onClick={() => handleCancel(doc.id, doc.orderNumber)}
+                          sx={{ fontSize: '0.72rem', py: 0.2, px: 1, borderRadius: 1, textTransform: 'none' }}
+                        >
+                          Cancel Order
+                        </Button>
+                      )}
+                      <Chip
+                        size="small"
+                        label={doc.paymentStatus}
+                        variant="outlined"
+                        sx={{ fontSize: '0.7rem' }}
+                      />
+                    </Stack>
                   </Stack>
                 </CardContent>
               </Card>
@@ -217,7 +246,21 @@ export function OrdersPage() {
                     <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#166534' }}>
                       ₹{pho.calculatedPrice.toFixed(2)}
                     </Typography>
-                    <Chip size="small" label={pho.paymentStatus} variant="outlined" sx={{ fontSize: '0.7rem' }} />
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      {['SUBMITTED', 'PENDING_ADMIN_APPROVAL'].includes(pho.status) && (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="error"
+                          startIcon={<Trash2 size={13} />}
+                          onClick={() => handleCancel(pho.id, pho.orderNumber)}
+                          sx={{ fontSize: '0.72rem', py: 0.2, px: 1, borderRadius: 1, textTransform: 'none' }}
+                        >
+                          Cancel Order
+                        </Button>
+                      )}
+                      <Chip size="small" label={pho.paymentStatus} variant="outlined" sx={{ fontSize: '0.7rem' }} />
+                    </Stack>
                   </Stack>
                 </CardContent>
               </Card>
@@ -334,7 +377,21 @@ export function OrdersPage() {
                     <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#166534' }}>
                       ₹{scn.calculatedPrice.toFixed(2)}
                     </Typography>
-                    <Chip size="small" label={scn.paymentStatus} variant="outlined" sx={{ fontSize: '0.7rem' }} />
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      {['SUBMITTED', 'PENDING_ADMIN_APPROVAL'].includes(scn.status) && (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="error"
+                          startIcon={<Trash2 size={13} />}
+                          onClick={() => handleCancel(scn.id, scn.orderNumber)}
+                          sx={{ fontSize: '0.72rem', py: 0.2, px: 1, borderRadius: 1, textTransform: 'none' }}
+                        >
+                          Cancel Order
+                        </Button>
+                      )}
+                      <Chip size="small" label={scn.paymentStatus} variant="outlined" sx={{ fontSize: '0.7rem' }} />
+                    </Stack>
                   </Stack>
                 </CardContent>
               </Card>
