@@ -902,7 +902,7 @@ namespace SmartXeroxHub.Agent
         {
             var dlg = new OpenFileDialog
             {
-                Filter = "Photo Images (*.jpg;*.jpeg;*.png)|*.jpg;*.jpeg;*.png|All Files (*.*)|*.*",
+                Filter = "Photo Images (*.jpg;*.jpeg;*.png;*.jfif;*.bmp;*.webp)|*.jpg;*.jpeg;*.png;*.jfif;*.bmp;*.webp;*.JPG;*.JPEG;*.PNG;*.JFIF;*.BMP;*.WEBP|All Files (*.*)|*.*",
                 Title = "Select Photo to Print"
             };
             if (dlg.ShowDialog() == true)
@@ -920,9 +920,9 @@ namespace SmartXeroxHub.Agent
                     var bi = new BitmapImage();
                     bi.BeginInit();
                     bi.CacheOption = BitmapCacheOption.OnLoad;
-                    bi.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
-                    bi.UriSource = new Uri(cropWin.ResultFilePath);
+                    bi.UriSource = new Uri(cropWin.ResultFilePath, UriKind.Absolute);
                     bi.EndInit();
+                    bi.Freeze();
 
                     ImgDeskPhotoPreview.Source = bi;
                     TxtDeskPhotoEmpty.Visibility = Visibility.Collapsed;
@@ -1006,7 +1006,7 @@ namespace SmartXeroxHub.Agent
         {
             var dlg = new OpenFileDialog
             {
-                Filter = "Photo Images (*.jpg;*.jpeg;*.png)|*.jpg;*.jpeg;*.png|All Files (*.*)|*.*",
+                Filter = "Photo Images (*.jpg;*.jpeg;*.png;*.jfif;*.bmp;*.webp)|*.jpg;*.jpeg;*.png;*.jfif;*.bmp;*.webp;*.JPG;*.JPEG;*.PNG;*.JFIF;*.BMP;*.WEBP|All Files (*.*)|*.*",
                 Title = "Select Portrait Photo for 8 Passport Copies"
             };
             if (dlg.ShowDialog() == true)
@@ -1022,9 +1022,9 @@ namespace SmartXeroxHub.Agent
                         var bi = new BitmapImage();
                         bi.BeginInit();
                         bi.CacheOption = BitmapCacheOption.OnLoad;
-                        bi.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
-                        bi.UriSource = new Uri(_deskPassportSheetPath);
+                        bi.UriSource = new Uri(_deskPassportSheetPath, UriKind.Absolute);
                         bi.EndInit();
+                        bi.Freeze();
 
                         ImgDeskPassportPreview.Source = bi;
                         TxtDeskPassportEmpty.Visibility = Visibility.Collapsed;

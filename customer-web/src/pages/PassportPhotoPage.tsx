@@ -88,8 +88,9 @@ export function PassportPhotoPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (!/image\/(jpeg|png|jpg)/i.test(file.type)) {
-        setError('Please upload a JPEG, JPG, or PNG image.');
+      const isImage = file.type.startsWith('image/') || /\.(jpe?g|png|webp|bmp|tiff?|jfif)$/i.test(file.name);
+      if (!isImage) {
+        setError('Please upload a valid image file (JPG, JPEG, PNG, WEBP, BMP).');
         return;
       }
       setError(null);
@@ -410,7 +411,7 @@ export function PassportPhotoPage() {
               }}
             >
               Select Image from Device
-              <input type="file" accept="image/jpeg,image/png,image/jpg" hidden onChange={handleFileChange} />
+              <input type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.bmp,.jfif" hidden onChange={handleFileChange} />
             </Button>
 
             <Box sx={{ mt: 4, p: 2.5, bgcolor: '#f8fafc', borderRadius: 1, border: '1px solid #e2e8f0', textAlign: 'left' }}>

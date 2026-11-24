@@ -114,8 +114,9 @@ export function PhotoPrintPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (!/image\/(jpeg|png|jpg)/.test(file.type)) {
-        setError('Please select a valid image file (JPG, JPEG, or PNG).');
+      const isImage = file.type.startsWith('image/') || /\.(jpe?g|png|webp|bmp|tiff?|jfif)$/i.test(file.name);
+      if (!isImage) {
+        setError('Please select a valid image file (JPG, JPEG, PNG, WEBP, BMP).');
         return;
       }
       setImageFileName(file.name);
@@ -459,7 +460,7 @@ export function PhotoPrintPage() {
               }}
             >
               Select Image from Device
-              <input type="file" accept="image/jpeg,image/png,image/jpg" hidden onChange={handleFileChange} />
+              <input type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.bmp,.jfif" hidden onChange={handleFileChange} />
             </Button>
 
             <Box sx={{ mt: 4, p: 2.5, bgcolor: '#f8fafc', borderRadius: 1, border: '1px solid #e2e8f0', textAlign: 'left' }}>

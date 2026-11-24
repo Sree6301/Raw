@@ -73,9 +73,9 @@ namespace SmartXeroxHub.Agent.UI
                 var bi = new BitmapImage();
                 bi.BeginInit();
                 bi.CacheOption = BitmapCacheOption.OnLoad;
-                bi.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
                 bi.StreamSource = ms;
                 bi.EndInit();
+                bi.Freeze();
 
                 ImgScannedPreview.Source = bi;
                 TxtFileInfo.Text = $"Dimensions: {_workingBitmap.Width} × {_workingBitmap.Height} px\nResolution: {_workingBitmap.HorizontalResolution:0} DPI\nFile: {Path.GetFileName(_filePath)}";

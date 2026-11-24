@@ -86,30 +86,54 @@ namespace SmartXeroxHub.Agent.UI
         {
             try
             {
-                if (!File.Exists(_sourceImagePath)) return;
-
-                byte[] bytes = File.ReadAllBytes(_sourceImagePath);
-                using (var ms = new MemoryStream(bytes))
+                if (!File.Exists(_sourceImagePath))
                 {
-                    _sourceBitmap = new Bitmap(ms);
+                    LoggingManager.Warn($"[DeskPhotoCrop] Source image does not exist: {_sourceImagePath}");
+                    MessageBox.Show($"Selected image file could not be found:\n{_sourceImagePath}", "File Not Found", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
                 }
 
+                byte[] bytes = File.ReadAllBytes(_sourceImagePath);
+
+                // 1. Initialize WPF BitmapImage cleanly without caching locks or null key exceptions
                 var bi = new BitmapImage();
                 bi.BeginInit();
                 bi.CacheOption = BitmapCacheOption.OnLoad;
-                bi.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
                 bi.StreamSource = new MemoryStream(bytes);
                 bi.EndInit();
+                bi.Freeze();
 
                 ImgDisplay.Source = bi;
                 ImgDisplay.Width = bi.PixelWidth;
                 ImgDisplay.Height = bi.PixelHeight;
 
-                // Center initial position
-                Loaded += (s, e) => ResetView();
+                // 2. Initialize decoupled GDI+ Bitmap for high-precision cropping & rotation
+                try
+                {
+                    using var ms = new MemoryStream(bytes);
+                    using var tempBmp = new Bitmap(ms);
+                    _sourceBitmap = new Bitmap(tempBmp);
+                }
+                catch
+                {
+                    // Universal fallback: decode via WPF/WIC pixel buffer directly into 32bpp GDI+ Bitmap
+                    var formatted = new FormatConvertedBitmap(bi, System.Windows.Media.PixelFormats.Bgra32, null, 0);
+                    int stride = formatted.PixelWidth * 4;
+                    byte[] pixelData = new byte[stride * formatted.PixelHeight];
+                    formatted.CopyPixels(pixelData, stride, 0);
+
+                    var gdiBmp = new Bitmap(formatted.PixelWidth, formatted.PixelHeight, PixelFormat.Format32bppArgb);
+                    var bmpData = gdiBmp.LockBits(new Rectangle(0, 0, gdiBmp.Width, gdiBmp.Height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+                    System.Runtime.InteropServices.Marshal.Copy(pixelData, 0, bmpData.Scan0, pixelData.Length);
+                    gdiBmp.UnlockBits(bmpData);
+                    _sourceBitmap = gdiBmp;
+                }
+
+                ResetView();
             }
             catch (Exception ex)
             {
+                LoggingManager.Error($"[DeskPhotoCrop] Failed to load image: {ex.Message}", ex);
                 MessageBox.Show($"Failed to load image: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
