@@ -202,28 +202,51 @@ namespace SmartXeroxHub.Agent.UI
             double canvasH = CanvasInteractive.ActualHeight;
             if (canvasW <= 10 || canvasH <= 10) return;
 
-            double imgW = ImgDisplay.Width;
-            double imgH = ImgDisplay.Height;
-
-            // Base fit scale to cover crop frame
             double cropW = BorderCropFrame.Width;
             double cropH = BorderCropFrame.Height;
-            double baseScale = Math.Max(cropW / imgW, cropH / imgH);
+            if (cropW <= 0 || cropH <= 0) return;
+
+            double imgW = ImgDisplay.Width;
+            double imgH = ImgDisplay.Height;
+            if (imgW <= 0 || imgH <= 0) return;
+
+            bool isRotated90or270 = (_rotation % 180 != 0);
+            double rotW = isRotated90or270 ? imgH : imgW;
+            double rotH = isRotated90or270 ? imgW : imgH;
+
+            // Base fit scale: image must completely cover the crop frame with default zoom ratio
+            double baseScale = Math.Max(cropW / rotW, cropH / rotH);
             if (baseScale <= 0) baseScale = 1.0;
 
-            double effScale = baseScale * _zoom;
+            double effScale = baseScale * Math.Max(1.0, _zoom);
+
+            // On-screen visual dimensions of the rotated image
+            double dispW = rotW * effScale;
+            double dispH = rotH * effScale;
+
+            // Constrain panning so the image can never leave the crop layout box
+            double maxPanX = Math.Max(0, (dispW - cropW) / 2.0);
+            double maxPanY = Math.Max(0, (dispH - cropH) / 2.0);
+            _panX = Math.Clamp(_panX, -maxPanX, maxPanX);
+            _panY = Math.Clamp(_panY, -maxPanY, maxPanY);
+
+            // Scale around the image's intrinsic center
             TransformScale.ScaleX = effScale;
             TransformScale.ScaleY = effScale;
+            TransformScale.CenterX = imgW / 2.0;
+            TransformScale.CenterY = imgH / 2.0;
 
+            // Rotate around the image's intrinsic center
             TransformRotate.Angle = _rotation;
-            TransformRotate.CenterX = imgW / 2;
-            TransformRotate.CenterY = imgH / 2;
+            TransformRotate.CenterX = imgW / 2.0;
+            TransformRotate.CenterY = imgH / 2.0;
 
-            double centerX = (canvasW - imgW) / 2;
-            double centerY = (canvasH - imgH) / 2;
+            // Translate so image intrinsic center aligns with crop frame center + pan offset
+            double cropCenterX = canvasW / 2.0;
+            double cropCenterY = canvasH / 2.0;
 
-            TransformTranslate.X = centerX + _panX;
-            TransformTranslate.Y = centerY + _panY;
+            TransformTranslate.X = (cropCenterX - imgW / 2.0) + _panX;
+            TransformTranslate.Y = (cropCenterY - imgH / 2.0) + _panY;
         }
 
         private void CanvasInteractive_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -287,6 +310,8 @@ namespace SmartXeroxHub.Agent.UI
         {
             if (!_isInitialized) return;
             _rotation = (_rotation + 90) % 360;
+            _panX = 0;
+            _panY = 0;
             UpdateImageTransform();
         }
 
@@ -349,6 +374,26 @@ namespace SmartXeroxHub.Agent.UI
                 else if (_rotation == 180) rotatedSrc.RotateFlip(RotateFlipType.Rotate180FlipNone);
                 else if (_rotation == 270) rotatedSrc.RotateFlip(RotateFlipType.Rotate270FlipNone);
 
+                double rotW = rotatedSrc.Width;
+                double rotH = rotatedSrc.Height;
+
+                double cropFrameW = BorderCropFrame.Width;
+                double cropFrameH = BorderCropFrame.Height;
+
+                double baseScale = Math.Max(cropFrameW / rotW, cropFrameH / rotH);
+                if (baseScale <= 0) baseScale = 1.0;
+                double effScale = baseScale * Math.Max(1.0, _zoom);
+
+                // Center of the crop window mapped into rotated source bitmap pixel coordinates
+                double srcCenterX = (rotW / 2.0) - (_panX / effScale);
+                double srcCenterY = (rotH / 2.0) - (_panY / effScale);
+
+                double srcW = cropFrameW / effScale;
+                double srcH = cropFrameH / effScale;
+
+                double srcX = Math.Clamp(srcCenterX - (srcW / 2.0), 0, Math.Max(0, rotW - srcW));
+                double srcY = Math.Clamp(srcCenterY - (srcH / 2.0), 0, Math.Max(0, rotH - srcH));
+
                 var croppedBmp = new Bitmap(outW, outH, PixelFormat.Format32bppArgb);
                 croppedBmp.SetResolution(300, 300);
 
@@ -359,30 +404,7 @@ namespace SmartXeroxHub.Agent.UI
                     g.SmoothingMode = SmoothingMode.HighQuality;
                     g.PixelOffsetMode = PixelOffsetMode.HighQuality;
 
-                    // Compute visible fraction of source image inside crop frame
-                    double cropFrameW = BorderCropFrame.Width;
-                    double cropFrameH = BorderCropFrame.Height;
-                    double cropFrameLeft = Canvas.GetLeft(BorderCropFrame);
-                    double cropFrameTop = Canvas.GetTop(BorderCropFrame);
-
-                    double canvasW = CanvasInteractive.ActualWidth;
-                    double canvasH = CanvasInteractive.ActualHeight;
-
-                    double imgW = ImgDisplay.Width;
-                    double imgH = ImgDisplay.Height;
-                    double baseScale = Math.Max(cropFrameW / imgW, cropFrameH / imgH);
-                    double effScale = baseScale * _zoom;
-
-                    double imgScreenLeft = (canvasW - imgW) / 2 + _panX;
-                    double imgScreenTop = (canvasH - imgH) / 2 + _panY;
-
-                    // Map crop frame rectangle back into source bitmap pixels
-                    double relCropX = (cropFrameLeft - imgScreenLeft) / effScale;
-                    double relCropY = (cropFrameTop - imgScreenTop) / effScale;
-                    double relCropW = cropFrameW / effScale;
-                    double relCropH = cropFrameH / effScale;
-
-                    var srcRect = new RectangleF((float)relCropX, (float)relCropY, (float)relCropW, (float)relCropH);
+                    var srcRect = new RectangleF((float)srcX, (float)srcY, (float)srcW, (float)srcH);
                     var destRect = new RectangleF(0, 0, outW, outH);
 
                     g.DrawImage(rotatedSrc, destRect, srcRect, GraphicsUnit.Pixel);

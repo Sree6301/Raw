@@ -65,7 +65,7 @@
 
                         <!-- Zoom Slider -->
                         <TextBlock x:Name="TxtZoomLabel" Text="Zoom: 100%" FontWeight="Bold" Foreground="#E2E8F0" FontSize="12" Margin="0,0,0,4"/>
-                        <Slider x:Name="SliderZoom" Minimum="0.5" Maximum="3.0" Value="1.0" ValueChanged="SliderZoom_ValueChanged" Margin="0,0,0,12"/>
+                        <Slider x:Name="SliderZoom" Minimum="1.0" Maximum="4.0" Value="1.0" SmallChange="0.05" LargeChange="0.2" ValueChanged="SliderZoom_ValueChanged" Margin="0,0,0,12"/>
 
                         <!-- Action Buttons -->
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
@@ -77,7 +77,7 @@
                         <Border Background="#0F172A" CornerRadius="4" Padding="10" BorderBrush="#334155" BorderThickness="1">
                             <StackPanel>
                                 <TextBlock Text="💡 Instructions:" FontWeight="Bold" Foreground="#38BDF8" FontSize="11" Margin="0,0,0,4"/>
-                                <TextBlock x:Name="TxtHelpTips" Text="• Click &amp; drag the photo inside the canvas to position the face.&#x0a;• Use the Zoom slider or Mouse Wheel to scale.&#x0a;• The highlighted box shows the exact printable output." Foreground="#94A3B8" FontSize="11" TextWrapping="Wrap" LineHeight="16"/>
+                                <TextBlock x:Name="TxtHelpTips" Text="• Drag the photo inside the canvas to position within the crop frame.&#x0a;• Use the Zoom slider or Mouse Wheel to scale up to 400%.&#x0a;• Photo fits the crop layout automatically with no empty borders.&#x0a;• Rotating keeps the photo centered in the crop box." Foreground="#94A3B8" FontSize="11" TextWrapping="Wrap" LineHeight="16"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>

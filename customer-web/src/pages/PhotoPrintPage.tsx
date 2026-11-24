@@ -146,6 +146,24 @@ export function PhotoPrintPage() {
     }
   };
 
+  // Helper to compute dimensions and clamp pan so photo never leaves the crop frame
+  const getCropBounds = (canvasW: number, canvasH: number) => {
+    if (!imageObjRef.current) return { maxPanX: 0, maxPanY: 0, drawW: canvasW, drawH: canvasH };
+    const img = imageObjRef.current;
+    const isRot = rotation % 180 !== 0;
+    const targetW = isRot ? canvasH : canvasW;
+    const targetH = isRot ? canvasW : canvasH;
+    const baseScale = Math.max(targetW / img.width, targetH / img.height);
+    const drawW = img.width * baseScale;
+    const drawH = img.height * baseScale;
+
+    const visualW = (isRot ? drawH : drawW) * zoom;
+    const visualH = (isRot ? drawW : drawH) * zoom;
+    const maxPanX = Math.max(0, (visualW - canvasW) / 2);
+    const maxPanY = Math.max(0, (visualH - canvasH) / 2);
+    return { maxPanX, maxPanY, drawW, drawH };
+  };
+
   // 2. Mouse / Touch Drag Handlers
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
@@ -153,10 +171,13 @@ export function PhotoPrintPage() {
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging) return;
+    if (!isDragging || !cropCanvasRef.current) return;
+    const { maxPanX, maxPanY } = getCropBounds(cropCanvasRef.current.width, cropCanvasRef.current.height);
+    const newX = e.clientX - dragStart.x;
+    const newY = e.clientY - dragStart.y;
     setPan({
-      x: e.clientX - dragStart.x,
-      y: e.clientY - dragStart.y
+      x: Math.max(-maxPanX, Math.min(maxPanX, newX)),
+      y: Math.max(-maxPanY, Math.min(maxPanY, newY))
     });
   };
 
@@ -171,11 +192,14 @@ export function PhotoPrintPage() {
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging || e.touches.length !== 1) return;
+    if (!isDragging || e.touches.length !== 1 || !cropCanvasRef.current) return;
     if (e.cancelable) e.preventDefault();
+    const { maxPanX, maxPanY } = getCropBounds(cropCanvasRef.current.width, cropCanvasRef.current.height);
+    const newX = e.touches[0].clientX - dragStart.x;
+    const newY = e.touches[0].clientY - dragStart.y;
     setPan({
-      x: e.touches[0].clientX - dragStart.x,
-      y: e.touches[0].clientY - dragStart.y
+      x: Math.max(-maxPanX, Math.min(maxPanX, newX)),
+      y: Math.max(-maxPanY, Math.min(maxPanY, newY))
     });
   };
 
@@ -196,19 +220,15 @@ export function PhotoPrintPage() {
     ctx.clearRect(0, 0, w, h);
     ctx.save();
 
+    const { maxPanX, maxPanY, drawW, drawH } = getCropBounds(w, h);
+    const clampedX = Math.max(-maxPanX, Math.min(maxPanX, pan.x));
+    const clampedY = Math.max(-maxPanY, Math.min(maxPanY, pan.y));
+
     // Center pivot
-    ctx.translate(w / 2 + pan.x, h / 2 + pan.y);
+    ctx.translate(w / 2 + clampedX, h / 2 + clampedY);
     ctx.rotate((rotation * Math.PI) / 180);
     ctx.scale(zoom, zoom);
 
-    // Draw image centered
-    const imgRatio = img.width / img.height;
-    let drawW = w;
-    let drawH = w / imgRatio;
-    if (drawH < h) {
-      drawH = h;
-      drawW = h * imgRatio;
-    }
     ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
     ctx.restore();
   }, [step, zoom, rotation, pan, aspectRatio, orientation, paperType, boxW, boxH]);
@@ -242,20 +262,18 @@ export function PhotoPrintPage() {
     offCtx.rect(0, 0, targetWidth, targetHeight);
     offCtx.clip();
 
+    const isRot = rotation % 180 !== 0;
+    const offTargetW = isRot ? targetHeight : targetWidth;
+    const offTargetH = isRot ? targetWidth : targetHeight;
+    const offBaseScale = Math.max(offTargetW / imageObjRef.current.width, offTargetH / imageObjRef.current.height);
+    const offDrawW = imageObjRef.current.width * offBaseScale;
+    const offDrawH = imageObjRef.current.height * offBaseScale;
+
     const scaleFactor = targetWidth / boxW;
     offCtx.translate(targetWidth / 2 + pan.x * scaleFactor, targetHeight / 2 + pan.y * scaleFactor);
     offCtx.rotate((rotation * Math.PI) / 180);
     offCtx.scale(zoom, zoom);
-
-    const img = imageObjRef.current;
-    const imgRatio = img.width / img.height;
-    let drawW = targetWidth;
-    let drawH = targetWidth / imgRatio;
-    if (drawH < targetHeight) {
-      drawH = targetHeight;
-      drawW = targetHeight * imgRatio;
-    }
-    offCtx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+    offCtx.drawImage(imageObjRef.current, -offDrawW / 2, -offDrawH / 2, offDrawW, offDrawH);
     offCtx.restore();
 
     const dataUrl = offscreen.toDataURL('image/jpeg', 0.98);
@@ -512,7 +530,10 @@ export function PhotoPrintPage() {
                   variant="outlined"
                   startIcon={<RotateCw size={14} />}
                   sx={{ borderRadius: 1, fontWeight: 700 }}
-                  onClick={() => setRotation((r) => (r + 90) % 360)}
+                  onClick={() => {
+                    setRotation((r) => (r + 90) % 360);
+                    setPan({ x: 0, y: 0 });
+                  }}
                 >
                   Rotate 90°
                 </Button>
@@ -579,8 +600,8 @@ export function PhotoPrintPage() {
                 <ZoomOut size={18} color="#64748b" />
                 <Slider
                   value={zoom}
-                  min={0.8}
-                  max={3}
+                  min={1}
+                  max={4}
                   step={0.05}
                   onChange={(_, val) => setZoom(val as number)}
                   sx={{ color: '#0284c7' }}
